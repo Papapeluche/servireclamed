@@ -1,0 +1,18 @@
+{
+  "name": "ServiReclaMed",
+  "short_name": "ServiReclaMed",
+  "description": "Digitación y gestión de reclamaciones médicas para ARS",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
