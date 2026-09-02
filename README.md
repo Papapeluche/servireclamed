@@ -137,6 +137,36 @@ código por ARS), no un dato de paciente, y es literalmente el contenido que
 esa parte de la app existe para guardar. Se va armando ARS por ARS a medida
 que el usuario manda cada lista.
 
+### Catálogo de médicos — import inicial (21 archivos "Códigos PSS")
+
+Se cargaron 50 médicos/PSS con 554 códigos en 18 ARS a partir de un correo
+con 21 archivos (uno por ARS). Nombres de ARS validados contra fuentes
+oficiales antes de guardarlos (algunos venían mal escritos o con nombres
+comerciales, ej. "Wordway" → **Worldwide Seguros**; "Asemap" es en
+realidad la razón social de **ARS ASEMAP**, la misma entidad que el
+formulario de "Ars Amor y Paz"; "Simag" se renombró a **ARS Abel González**
+en 2023). Se agregó también **IDOPPRIL** (no es una ARS bajo la 87-01, es
+el instituto que cubre accidentes laborales, pero igual se le entregan
+reclamaciones y tiene código de médicos).
+
+Se cruzó cédula por cédula entre los 21 archivos para no duplicar personas
+por variaciones de escritura del nombre (23 casos, ej. "Delia A. Kiem" vs
+"Delia Alfonsina Kiem" — se quedó con el nombre más completo). Dos
+inconsistencias reales se resolvieron con evidencia cruzada en vez de
+adivinar:
+- El archivo de UASD traía a "Patria Gonzalez" con la cédula de otra
+  médica ("Ordalina Gonzalez Espinal") por error de digitación — se
+  excluyó esa fila en vez de fusionar a dos personas distintas. Su cédula
+  correcta (079-0009980-0) ya estaba confirmada por su propio encabezado
+  en el archivo de relación de Senasa.
+- "July Leonor Paredes Rodriguez" aparecía con dos cédulas que difieren en
+  la transposición de dos dígitos; se usó la que respaldan 10 de los 15
+  archivos que la mencionan (incluyendo Senasa, UASD y Humano).
+
+Tres archivos (IDOPPRIL, Futuro, Worldwide Seguros) no traían código
+todavía — solo nombre/cédula. Un archivo (GMA) trae además el centro donde
+practica cada médico, ya guardado en `doctors.centro_medico`.
+
 ## Modelo de datos (genérico — punto de partida)
 
 Los campos en `src/lib/claimFields.js` y la tabla `claims` son una
