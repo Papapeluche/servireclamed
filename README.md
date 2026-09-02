@@ -61,7 +61,9 @@ Cómo funciona por dentro:
    formulario, la IA automáticamente empieza a pedirlo también, sin tocar
    el prompt a mano.
 2. Se manda la foto (como imagen en base64) + el prompt a **Gemini**
-   (`gemini-2.0-flash` por defecto) — `src/lib/ai/gemini.js`. Se pide la
+   (`gemini-3.6-flash` por defecto — el nombre del modelo cambia con el
+   tiempo, se puede sobreescribir con `GEMINI_MODEL` sin tocar código si
+   Google vuelve a retirar uno) — `src/lib/ai/gemini.js`. Se pide la
    respuesta forzada en JSON (`generationConfig.responseMimeType:
    "application/json"`, algo que Gemini soporta nativo), así que no hace
    falta ni limpiar bloques de \`\`\`markdown alrededor del JSON.

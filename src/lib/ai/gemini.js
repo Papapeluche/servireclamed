@@ -4,7 +4,14 @@
 //
 // Requiere GEMINI_API_KEY (privada, server-only). Se saca gratis, sin pasos
 // de activación de modelo, en https://aistudio.google.com/apikey.
-const DEFAULT_MODEL = "gemini-2.0-flash";
+//
+// gemini-2.0-flash (el default original) fue retirado por Google después
+// de enero 2026 (fecha de corte de conocimiento) — confirmado con un error
+// 404 real de la API en producción, que además indicó el reemplazo actual.
+// Si este modelo también se retira en el futuro, el mensaje de error de
+// Gemini normalmente dice cuál usar en su lugar — o se puede sobreescribir
+// con la variable de entorno GEMINI_MODEL sin tocar código.
+const DEFAULT_MODEL = "gemini-3.6-flash";
 
 export function isGeminiConfigured() {
   return Boolean(process.env.GEMINI_API_KEY);
