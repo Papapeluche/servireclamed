@@ -48,7 +48,7 @@ export default async function RelacionesPage() {
 
   const { data: hojaTemplates } = await supabase
     .from("export_templates")
-    .select("id, nombre, ars_id")
+    .select("id, nombre, ars_id, header_fields, categorias")
     .eq("tipo", "hoja_presentacion");
 
   // Para sugerir el próximo comprobante disponible por médico (el nombre en

@@ -84,8 +84,14 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    reclamación. Se genera desde el historial de `/relaciones` (botón
    "Hoja de presentación"), usando una plantilla `tipo: hoja_presentacion`
    creada en `/plantillas` — ahí se definen las categorías y qué tipos de
-   servicio caen en cada una. Ya existe una plantilla real para **ARS CMD**
-   (`Hoja de presentación CMD`), calcada de una factura real que compartió
+   servicio caen en cada una. La plantilla es el punto de partida, no una
+   camisa de fuerza: al generar, el botón abre un panel con casillas para
+   cada campo del encabezado y cada categoría, así que si esta vez no hace
+   falta algún dato (ej. no aplica "Fecha de Vencimiento", o no hubo
+   hospitalización) se desmarca y no sale en el Excel — sin tener que crear
+   una plantilla nueva solo por eso. Ya existe una plantilla real para
+   **ARS CMD** (`Hoja de presentación CMD`), calcada de una factura real que
+   compartió
    el usuario.
 
 7. `/comprobantes` — cada médico tiene un rango limitado de **NCF**

@@ -3,18 +3,58 @@
 import { useState } from "react";
 
 export default function GenerarHojaPresentacionButton({ relacionId, templates, comprobante }) {
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [templateId, setTemplateId] = useState(templates?.[0]?.id || "");
   const [useComprobante, setUseComprobante] = useState(Boolean(comprobante));
+  const [selectedHeaderFields, setSelectedHeaderFields] = useState(new Set());
+  const [selectedCategorias, setSelectedCategorias] = useState(new Set());
 
-  async function handleClick() {
+  const template = templates?.find((t) => t.id === templateId);
+
+  function openPanel() {
+    const tpl = templates?.find((t) => t.id === templateId) || templates?.[0];
+    setSelectedHeaderFields(new Set((tpl?.header_fields || []).map((f) => f.field)));
+    setSelectedCategorias(new Set((tpl?.categorias || []).map((c) => c.label)));
+    setOpen(true);
+  }
+
+  function changeTemplate(id) {
+    setTemplateId(id);
+    const tpl = templates?.find((t) => t.id === id);
+    setSelectedHeaderFields(new Set((tpl?.header_fields || []).map((f) => f.field)));
+    setSelectedCategorias(new Set((tpl?.categorias || []).map((c) => c.label)));
+  }
+
+  function toggleHeaderField(field) {
+    setSelectedHeaderFields((prev) => {
+      const next = new Set(prev);
+      next.has(field) ? next.delete(field) : next.add(field);
+      return next;
+    });
+  }
+
+  function toggleCategoria(label) {
+    setSelectedCategorias((prev) => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  }
+
+  async function handleGenerate() {
+    if (!template) return;
     setLoading(true);
+
+    const header_fields = template.header_fields.filter((f) => selectedHeaderFields.has(f.field));
+    const categorias = template.categorias.filter((c) => selectedCategorias.has(c.label));
 
     const res = await fetch(`/api/relaciones/${relacionId}/hoja-presentacion`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        template_id: templateId || null,
+        header_fields,
+        categorias,
         comprobante_id: useComprobante ? comprobante?.id || null : null,
       }),
     });
@@ -38,35 +78,67 @@ export default function GenerarHojaPresentacionButton({ relacionId, templates, c
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    setOpen(false);
+  }
+
+  if (!templates || templates.length === 0) {
+    return <span className="text-xs text-slate-300">Sin plantilla de hoja</span>;
+  }
+
+  if (!open) {
+    return (
+      <button onClick={openPanel} className="text-xs text-brand-600 hover:underline">
+        Hoja de presentación
+      </button>
+    );
   }
 
   return (
-    <div className="flex flex-col items-start gap-1">
-      <div className="flex items-center gap-2">
-        {templates?.length > 0 && (
-          <select
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
-          >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nombre}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          onClick={handleClick}
-          disabled={loading || templates?.length === 0}
-          title={templates?.length === 0 ? "Crea una plantilla de hoja de presentación primero" : ""}
-          className="text-xs text-brand-600 hover:underline disabled:text-slate-300 disabled:no-underline"
+    <div className="w-64 rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-sm">
+      {templates.length > 1 && (
+        <select
+          value={templateId}
+          onChange={(e) => changeTemplate(e.target.value)}
+          className="mb-2 w-full rounded border border-slate-300 px-2 py-1 text-xs"
         >
-          {loading ? "Generando..." : "Hoja de presentación"}
-        </button>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.nombre}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <p className="mb-1 font-medium text-slate-700">Campos del encabezado</p>
+      <div className="mb-2 flex flex-col gap-1">
+        {template?.header_fields.map((f) => (
+          <label key={f.field} className="flex items-center gap-1 text-slate-600">
+            <input
+              type="checkbox"
+              checked={selectedHeaderFields.has(f.field)}
+              onChange={() => toggleHeaderField(f.field)}
+            />
+            {f.label}
+          </label>
+        ))}
       </div>
+
+      <p className="mb-1 font-medium text-slate-700">Categorías</p>
+      <div className="mb-2 flex flex-col gap-1">
+        {template?.categorias.map((c) => (
+          <label key={c.label} className="flex items-center gap-1 text-slate-600">
+            <input
+              type="checkbox"
+              checked={selectedCategorias.has(c.label)}
+              onChange={() => toggleCategoria(c.label)}
+            />
+            {c.label}
+          </label>
+        ))}
+      </div>
+
       {comprobante && (
-        <label className="flex items-center gap-1 text-[11px] text-slate-500">
+        <label className="mb-2 flex items-center gap-1 text-slate-600">
           <input
             type="checkbox"
             checked={useComprobante}
@@ -75,6 +147,22 @@ export default function GenerarHojaPresentacionButton({ relacionId, templates, c
           Usar NCF #{comprobante.numero}
         </label>
       )}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleGenerate}
+          disabled={loading || selectedCategorias.size === 0}
+          className="rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+        >
+          {loading ? "Generando..." : "Generar"}
+        </button>
+        <button
+          onClick={() => setOpen(false)}
+          className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }

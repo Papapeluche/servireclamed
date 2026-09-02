@@ -5,7 +5,12 @@ import { HEADER_FIELD_LABELS } from "@/lib/relacionFields";
 export async function POST(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { template_id, comprobante_id } = await request.json().catch(() => ({}));
+  const {
+    template_id,
+    comprobante_id,
+    header_fields: headerFieldsOverride,
+    categorias: categoriasOverride,
+  } = await request.json().catch(() => ({}));
 
   const { data: relacion, error: relacionError } = await supabase
     .from("relaciones")
@@ -19,45 +24,58 @@ export async function POST(request, { params }) {
     return new Response("Relación no encontrada", { status: 404 });
   }
 
-  let template = null;
-  if (template_id) {
-    const { data } = await supabase
-      .from("export_templates")
-      .select("header_fields, categorias")
-      .eq("id", template_id)
-      .eq("tipo", "hoja_presentacion")
-      .single();
-    template = data;
-  }
-  if (!template) {
-    const { data } = await supabase
-      .from("export_templates")
-      .select("header_fields, categorias")
-      .eq("tipo", "hoja_presentacion")
-      .or(`ars_id.eq.${relacion.ars_id},ars_id.is.null`)
-      .order("ars_id", { ascending: true, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    template = data;
-  }
+  // El cliente normalmente ya manda header_fields/categorias filtrados (el
+  // usuario puede desmarcar campos/categorías que no hagan falta esta vez).
+  // Si no vienen, se cae a la plantilla guardada, y si tampoco hay
+  // plantilla, a un layout genérico razonable.
+  let headerFields = headerFieldsOverride;
+  let categorias = categoriasOverride;
 
-  const headerFields = template?.header_fields?.length
-    ? template.header_fields
-    : [
-        { field: "ars_nombre", label: "ARS" },
-        { field: "ars_rnc", label: "RNC" },
-        { field: "fecha", label: "Fecha" },
-        { field: "doctor_nombre", label: "Médico" },
-        { field: "doctor_cedula", label: "Cédula" },
-        { field: "doctor_codigo", label: "Código" },
-        { field: "especialidad", label: "Especialidad" },
-        { field: "centro_medico", label: "Centro" },
-        { field: "telefono_medico", label: "Teléfono" },
-      ];
+  if (!headerFields?.length || !categorias?.length) {
+    let template = null;
+    if (template_id) {
+      const { data } = await supabase
+        .from("export_templates")
+        .select("header_fields, categorias")
+        .eq("id", template_id)
+        .eq("tipo", "hoja_presentacion")
+        .single();
+      template = data;
+    }
+    if (!template) {
+      const { data } = await supabase
+        .from("export_templates")
+        .select("header_fields, categorias")
+        .eq("tipo", "hoja_presentacion")
+        .or(`ars_id.eq.${relacion.ars_id},ars_id.is.null`)
+        .order("ars_id", { ascending: true, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      template = data;
+    }
 
-  const categorias = template?.categorias?.length
-    ? template.categorias
-    : [{ label: "Total", tipos: [] }];
+    if (!headerFields?.length) {
+      headerFields = template?.header_fields?.length
+        ? template.header_fields
+        : [
+            { field: "ars_nombre", label: "ARS" },
+            { field: "ars_rnc", label: "RNC" },
+            { field: "fecha", label: "Fecha" },
+            { field: "doctor_nombre", label: "Médico" },
+            { field: "doctor_cedula", label: "Cédula" },
+            { field: "doctor_codigo", label: "Código" },
+            { field: "especialidad", label: "Especialidad" },
+            { field: "centro_medico", label: "Centro" },
+            { field: "telefono_medico", label: "Teléfono" },
+          ];
+    }
+
+    if (!categorias?.length) {
+      categorias = template?.categorias?.length
+        ? template.categorias
+        : [{ label: "Total", tipos: [] }];
+    }
+  }
 
   const { data: rows, error: rowsError } = await supabase
     .from("relacion_claims")
