@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import RelacionGroupCard from "@/components/RelacionGroupCard";
-import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
-import DescargarPlantillaButton from "@/components/DescargarPlantillaButton";
+import RelacionesHistorial from "@/components/RelacionesHistorial";
 
 export const dynamic = "force-dynamic";
 
@@ -71,8 +70,21 @@ export default async function RelacionesPage() {
 
   const { data: relaciones } = await supabase
     .from("relaciones")
-    .select("id, fecha, estado, total_monto, doctor_nombre, ars_id, ars_catalog(nombre)")
+    .select(
+      "id, fecha, estado, total_monto, doctor_nombre, doctor_codigo, doctor_cedula, ars_id, ars_catalog(nombre)"
+    )
     .order("created_at", { ascending: false });
+
+  // Los componentes de servidor no pueden pasarle funciones a los de
+  // cliente, así que se resuelve acá el próximo comprobante de cada médico
+  // presente en el historial y se manda como mapa plano.
+  const comprobantesByDoctor = {};
+  for (const r of relaciones || []) {
+    if (!r.doctor_nombre) continue;
+    const key = r.doctor_nombre.trim().toLowerCase();
+    if (key in comprobantesByDoctor) continue;
+    comprobantesByDoctor[key] = nextComprobanteFor(r.doctor_nombre);
+  }
 
   return (
     <div>
@@ -106,61 +118,12 @@ export default async function RelacionesPage() {
         </div>
       )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Historial</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500">
-              <tr>
-                <th className="px-4 py-2">ARS</th>
-                <th className="px-4 py-2">Médico</th>
-                <th className="px-4 py-2">Fecha</th>
-                <th className="px-4 py-2">Total</th>
-                <th className="px-4 py-2"></th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(relaciones || []).map((r) => (
-                <tr key={r.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">
-                    <Link href={`/relaciones/${r.id}`} className="text-brand-600 hover:underline">
-                      {r.ars_catalog?.nombre}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2">{r.doctor_nombre || "—"}</td>
-                  <td className="px-4 py-2 text-slate-500">{r.fecha}</td>
-                  <td className="px-4 py-2">RD$ {Number(r.total_monto).toFixed(2)}</td>
-                  <td className="px-4 py-2">
-                    <DescargarPlantillaButton
-                      relacionId={r.id}
-                      templates={(relacionTemplates || []).filter(
-                        (t) => !t.ars_id || t.ars_id === r.ars_id
-                      )}
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <GenerarHojaPresentacionButton
-                      relacionId={r.id}
-                      templates={(hojaTemplates || []).filter(
-                        (t) => !t.ars_id || t.ars_id === r.ars_id
-                      )}
-                      comprobante={nextComprobanteFor(r.doctor_nombre)}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {(!relaciones || relaciones.length === 0) && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                    Aún no se ha convertido ninguna relación.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <RelacionesHistorial
+        relaciones={relaciones || []}
+        relacionTemplates={relacionTemplates || []}
+        hojaTemplates={hojaTemplates || []}
+        comprobantesByDoctor={comprobantesByDoctor}
+      />
 
       <p className="mt-4 text-xs text-slate-400">
         ¿Formatos por ARS?{" "}

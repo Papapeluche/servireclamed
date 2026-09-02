@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import MedicosTable from "@/components/MedicosTable";
 
 export const dynamic = "force-dynamic";
 
@@ -28,53 +29,7 @@ export default async function MedicosPage() {
         médico ya está aquí, sus datos se auto-completan.
       </p>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Nombre</th>
-              <th className="px-4 py-2">Cédula</th>
-              <th className="px-4 py-2">Especialidad</th>
-              <th className="px-4 py-2">Códigos por ARS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(doctors || []).map((d) => (
-              <tr key={d.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link href={`/medicos/${d.id}`} className="text-brand-600 hover:underline">
-                    {d.nombre}
-                  </Link>
-                </td>
-                <td className="px-4 py-2 text-slate-500">{d.cedula || "—"}</td>
-                <td className="px-4 py-2 text-slate-500">{d.especialidad || "—"}</td>
-                <td className="px-4 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    {(d.doctor_ars_codigos || []).map((c, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                      >
-                        {c.ars_catalog?.nombre}: {c.codigo}
-                      </span>
-                    ))}
-                    {(!d.doctor_ars_codigos || d.doctor_ars_codigos.length === 0) && (
-                      <span className="text-xs text-slate-400">Sin código registrado</span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {(!doctors || doctors.length === 0) && (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                  Aún no hay médicos cargados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <MedicosTable doctors={doctors || []} />
     </div>
   );
 }

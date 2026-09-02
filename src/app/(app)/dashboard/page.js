@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CLAIM_STATUS_LABELS } from "@/lib/claimFields";
 import EscanearQR from "@/components/EscanearQR";
 import AutoRefresh from "@/components/AutoRefresh";
+import DashboardSearch from "@/components/DashboardSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,19 @@ export default async function DashboardPage({ searchParams }) {
   const page = Math.max(1, Number(params?.pagina) || 1);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
+
+  // Se quitan comas y comodines de LIKE porque .or() de PostgREST los usa
+  // como separadores/wildcards — si no, una búsqueda con esos caracteres
+  // rompe el filtro en vez de simplemente no encontrar nada.
+  const q = (params?.q || "").trim().replace(/[,()%*]/g, "");
+  const SEARCH_COLUMNS = [
+    "afiliado_nombre",
+    "paciente_cedula",
+    "doctor_nombre",
+    "doctor_cedula",
+    "doctor_codigo",
+    "no_carnet_nss",
+  ];
 
   // Los contadores tienen que salir de un conteo real (count: 'exact'), no
   // de la página que se está mostrando — si no, con más de 100
@@ -40,6 +54,7 @@ export default async function DashboardPage({ searchParams }) {
     .range(from, to);
 
   if (activeStatus) query = query.eq("status", activeStatus);
+  if (q) query = query.or(SEARCH_COLUMNS.map((col) => `${col}.ilike.%${q}%`).join(","));
 
   const { data: claims, error, count: totalFiltered } = await query;
 
@@ -48,6 +63,7 @@ export default async function DashboardPage({ searchParams }) {
   function pageHref(p, estado = activeStatus) {
     const qs = new URLSearchParams();
     if (estado) qs.set("estado", estado);
+    if (q) qs.set("q", q);
     if (p > 1) qs.set("pagina", String(p));
     const s = qs.toString();
     return s ? `/dashboard?${s}` : "/dashboard";
@@ -69,6 +85,10 @@ export default async function DashboardPage({ searchParams }) {
 
       <div className="mb-6">
         <EscanearQR />
+      </div>
+
+      <div className="mb-6">
+        <DashboardSearch />
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
@@ -96,9 +116,17 @@ export default async function DashboardPage({ searchParams }) {
         </p>
       )}
 
-      {activeStatus && (
+      {(activeStatus || q) && (
         <p className="mb-3 text-sm text-slate-500">
-          Filtrando por: <strong>{CLAIM_STATUS_LABELS[activeStatus]}</strong> ·{" "}
+          Filtrando por:{" "}
+          {activeStatus && <strong>{CLAIM_STATUS_LABELS[activeStatus]}</strong>}
+          {activeStatus && q && " · "}
+          {q && (
+            <>
+              búsqueda &quot;<strong>{q}</strong>&quot;
+            </>
+          )}{" "}
+          ·{" "}
           <Link href="/dashboard" className="text-brand-600 hover:underline">
             ver todas
           </Link>

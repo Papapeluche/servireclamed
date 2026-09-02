@@ -174,6 +174,16 @@ desaparecían de la vista sin aviso y los contadores mentían. Se corrigió:
 los contadores ahora salen de un conteo exacto por estado, y la tabla
 pagina de 100 en 100 con filtro por estado (clic en cualquier contador).
 
+Con ese mismo volumen en mente, `/dashboard` también tiene un **buscador**
+(nombre del paciente, cédula, médico o código) que filtra en el servidor
+(`ILIKE` sobre esos campos, combinado con el filtro de estado, sin perder la
+paginación) — necesario ahí porque la tabla nunca trae todo. `/medicos` y
+`/comprobantes` también tienen buscador, pero client-side (filtran el
+arreglo que ya se trajo completo), porque esas listas no están paginadas.
+Igual el Historial de `/relaciones`. No se le puso buscador a `/plantillas`
+(son pocos formatos, fijos) ni a las reclamaciones de un médico en su mesa de
+trabajo (ya se filtran por ARS con los chips).
+
 ## Campos reales (no genéricos) — basado en documentos que compartió el usuario
 
 Se revisaron formularios reales de **9 ARS distintas**:

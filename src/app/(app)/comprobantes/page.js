@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import AsignarComprobantesForm from "@/components/AsignarComprobantesForm";
-import AnularComprobanteButton from "@/components/AnularComprobanteButton";
+import ComprobantesTable from "@/components/ComprobantesTable";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +8,6 @@ const ESTADO_LABELS = {
   disponible: "Disponible",
   usado: "Usado",
   anulado: "Anulado",
-};
-
-const ESTADO_STYLES = {
-  disponible: "bg-emerald-100 text-emerald-700",
-  usado: "bg-slate-200 text-slate-700",
-  anulado: "bg-red-100 text-red-700",
 };
 
 export default async function ComprobantesPage() {
@@ -52,61 +46,7 @@ export default async function ComprobantesPage() {
 
       <AsignarComprobantesForm doctors={doctors || []} />
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Número</th>
-              <th className="px-4 py-2">Médico</th>
-              <th className="px-4 py-2">Vence</th>
-              <th className="px-4 py-2">Estado</th>
-              <th className="px-4 py-2">ARS usado</th>
-              <th className="px-4 py-2">Monto</th>
-              <th className="px-4 py-2">Fecha de uso</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(comprobantes || []).map((c) => (
-              <tr key={c.id} className="border-t border-slate-100">
-                <td className="px-4 py-2 font-mono text-xs">{c.numero}</td>
-                <td className="px-4 py-2">{c.doctors?.nombre || "—"}</td>
-                <td className="px-4 py-2 text-slate-500">{c.vencimiento || "—"}</td>
-                <td className="px-4 py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ESTADO_STYLES[c.estado]}`}>
-                    {ESTADO_LABELS[c.estado]}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-slate-500">{c.ars_catalog?.nombre || "—"}</td>
-                <td className="px-4 py-2 text-slate-500">
-                  {c.monto ? `RD$ ${Number(c.monto).toFixed(2)}` : "—"}
-                </td>
-                <td className="px-4 py-2 text-slate-500">
-                  {c.used_at ? new Date(c.used_at).toLocaleDateString("es-DO") : "—"}
-                </td>
-                <td className="px-4 py-2">
-                  {c.estado === "disponible" && <AnularComprobanteButton id={c.id} />}
-                  {c.estado === "usado" && c.relaciones?.id && (
-                    <a
-                      href={`/api/relaciones/${c.relaciones.id}/export`}
-                      className="text-xs text-brand-600 hover:underline"
-                    >
-                      Ver relación
-                    </a>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {(!comprobantes || comprobantes.length === 0) && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
-                  Aún no hay comprobantes asignados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ComprobantesTable comprobantes={comprobantes || []} />
     </div>
   );
 }
