@@ -19,18 +19,70 @@ revise con más cuidado), y generación automática de la relación en Excel.
 
 ## Estrategia de costo (por fases)
 
-El objetivo es operar en **$0/mes** el mayor tiempo posible:
+El objetivo siempre fue operar en **$0/mes** el mayor tiempo posible, con
+IA solo cuando el costo por imagen fuera prácticamente nulo:
 
-- **Fase 1 (esta versión):** digitación 100% manual con validación
-  estructural y visor de imagen con zoom. Sin IA, sin costo por reclamación.
-- **Fase 2 (futuro, sigue siendo ~gratis):** pre-llenado de campos con un
-  modelo de reconocimiento de escritura open-source (TrOCR / PaddleOCR)
-  corriendo en un servidor propio — el humano siempre confirma. Costo fijo
-  de hosting, no por imagen.
-- **Fase 3 (futuro, pago solo si hace falta):** usar un modelo de visión
-  pago (ej. Claude) *solo* en los campos que el digitador marcó como "no se
-  entiende", nunca en la reclamación completa. El gasto queda proporcional a
-  cuántos campos son realmente ilegibles, no al volumen total.
+- **Fase 1 (como arrancó el proyecto):** digitación 100% manual con
+  validación estructural y visor de imagen con zoom. Sin IA, sin costo por
+  reclamación.
+- **Fase 2 — YA ACTIVA:** cada reclamación capturada se manda automático a
+  **Qwen-VL** (Alibaba Cloud, vía DashScope) para que lea la foto y
+  prellene el formulario completo — el digitador ya no transcribe desde
+  cero, solo **verifica y corrige** lo que la IA no pudo leer bien. Ver
+  "Lectura automática con IA" más abajo. Costo real por imagen: fracciones
+  de centavo (o $0 dentro de la cuota gratis de DashScope), muy lejos de lo
+  que costaría un modelo de visión de OpenAI/Anthropic al volumen de este
+  negocio (cientos de imágenes/día).
+- **Fase 3 (si algún día hiciera falta más precisión en un caso puntual):**
+  usar un modelo de visión más caro (ej. Claude/GPT) *solo* en los campos
+  que quedaron marcados como inciertos después de Qwen-VL, nunca en la
+  reclamación completa — el gasto quedaría proporcional a lo que de verdad
+  es difícil de leer, no al volumen total. No ha sido necesario todavía.
+
+## Lectura automática con IA (Qwen-VL)
+
+Cuando se captura una reclamación (`/capturar`), justo después de subir la
+foto y crear el registro, el sistema llama en segundo plano a
+`POST /api/claims/[id]/analizar` (`src/app/api/claims/[id]/analizar/route.js`)
+— **no bloquea la siguiente captura**, la miniatura solo cambia de 🤖
+(leyendo) a ✓ (lista) o ⚠ (lista, pero revisa lo marcado) cuando termina.
+
+Cómo funciona por dentro:
+1. Se arma un prompt (`src/lib/ai/extractionPrompt.js`) generado **desde el
+   mismo catálogo de campos** que ya usa el formulario de digitación
+   (`src/lib/claimFields.js`) — si mañana se agrega un campo nuevo al
+   formulario, la IA automáticamente empieza a pedirlo también, sin tocar
+   el prompt a mano.
+2. Se manda la foto (como imagen en base64) + el prompt a Qwen-VL
+   (`qwen-vl-max` por defecto) vía el endpoint "compatible mode" de
+   DashScope (mismo formato que la API de chat de OpenAI, para no depender
+   de un SDK propio de Alibaba) — `src/lib/ai/qwen.js`.
+3. El modelo devuelve un JSON con cada campo que pudo leer, más un array
+   `campos_inciertos` con los que llenó pero de los que no está seguro
+   (letra ambigua, tachada, etc.).
+4. Esos campos inciertos se guardan en la MISMA columna
+   `low_confidence_fields` que ya usaba el botón manual "¿No se entiende?"
+   — así que en `/reclamaciones/[id]` salen marcados en amarillo exactamente
+   igual que si un humano los hubiera marcado, sin tener que construir un
+   mecanismo de aviso aparte.
+5. El nombre de ARS que devuelve el modelo (texto libre) se intenta
+   emparejar contra el catálogo real (`ars_catalog`) para autocompletar
+   `ars_id` — si no hay un match claro, se deja sin asignar en vez de
+   adivinar y el digitador lo elige a mano.
+
+**Si la IA no está configurada o falla**, la reclamación queda exactamente
+como antes de esta feature: vacía, para digitar a mano — nunca bloquea la
+captura ni la digitación. `ClaimEditor` muestra un aviso arriba del
+formulario ("Prellenado por IA" o "Esta reclamación no se ha leído con
+IA") con un botón para **leer/releer con IA** en cualquier momento (útil si
+la primera lectura falló, o si se retoca la imagen).
+
+**Configuración necesaria** (`DASHSCOPE_API_KEY` en `.env.local` y en
+Vercel — ver `.env.example`): se saca gratis en
+`https://modelstudio.console.alibabacloud.com` (cuenta internacional, tiene
+cuota de bienvenida sin tarjeta). Sin esa variable, `/api/claims/[id]/analizar`
+devuelve un error claro y la app sigue funcionando 100% manual, como
+siempre pudo.
 
 ## Stack
 
@@ -488,6 +540,16 @@ separaron en columnas propias en `claims`. Ahora se ve en la práctica:
 
 ## Pendientes / decisiones abiertas
 
+- [ ] **Probar la lectura con IA con una llave real de DashScope.** Se
+      integró contra el endpoint "compatible mode" de DashScope (formato
+      documentado, igual al de OpenAI) pero no se pudo probar en vivo desde
+      este entorno de desarrollo — el sandbox donde se construyó no tiene
+      salida de red hacia `dashscope-intl.aliyuncs.com`. En Vercel sí debería
+      funcionar normal (ahí la salida a internet es abierta), pero conviene
+      probar la primera captura real con cuidado por si el formato exacto
+      de la respuesta de DashScope difiere un poco de lo documentado — si
+      algo falla, el error queda guardado en `claims.ai_error` para poder
+      diagnosticarlo.
 - [ ] Ver la cámara del celular **en tiempo real desde la PC** (tipo
       videollamada/WebRTC) mientras se escanea — se evaluó y por ahora no se
       construyó, es una función bastante más compleja que la captura

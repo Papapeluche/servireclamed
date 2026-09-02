@@ -24,6 +24,21 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [analizando, setAnalizando] = useState(false);
+
+  async function reintentarIA() {
+    setAnalizando(true);
+    const res = await fetch(`/api/claims/${claim.id}/analizar`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setAnalizando(false);
+    if (!res.ok) {
+      setMessage({ type: "error", text: data.error || "No se pudo leer la imagen con IA." });
+      return;
+    }
+    // Los campos se recalculan al montar el componente desde `claim`, así
+    // que hace falta recargar para verlos ya prellenados.
+    window.location.reload();
+  }
 
   const missingRequired = useMemo(
     () => REQUIRED_FIELD_NAMES.filter((name) => !String(values[name] || "").trim()),
@@ -206,6 +221,33 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
             {claim.digitized_by && <span>Digitado por {profilesMap[claim.digitized_by] || "—"}</span>}
             {claim.verified_by && <span>Revisado por {profilesMap[claim.verified_by] || "—"}</span>}
           </p>
+        )}
+
+        {claim.ai_procesado_at ? (
+          <div className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+            🤖 Prellenado por IA — verifica los campos, sobre todo los
+            marcados en amarillo, antes de continuar.{" "}
+            <button
+              onClick={reintentarIA}
+              disabled={analizando}
+              className="font-medium underline hover:no-underline disabled:opacity-60"
+            >
+              {analizando ? "Leyendo de nuevo..." : "Volver a leer con IA"}
+            </button>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
+            {claim.ai_error
+              ? `⚠ La IA no pudo leer esta imagen (${claim.ai_error}).`
+              : "Esta reclamación todavía no se ha leído con IA."}{" "}
+            <button
+              onClick={reintentarIA}
+              disabled={analizando}
+              className="font-medium text-brand-600 underline hover:no-underline disabled:opacity-60"
+            >
+              {analizando ? "Leyendo..." : "Leer con IA"}
+            </button>
+          </div>
         )}
 
         {lowConfidence.size > 0 && (

@@ -78,8 +78,15 @@ export default function CameraCapture() {
 
   function addCaptura(thumb, fileOrBlob) {
     const localId = crypto.randomUUID();
-    setCapturas((prev) => [{ localId, thumb, status: "subiendo", claimId: null }, ...prev]);
+    setCapturas((prev) => [
+      { localId, thumb, status: "subiendo", claimId: null, aiStatus: null },
+      ...prev,
+    ]);
     uploadAndCreateClaim(localId, fileOrBlob);
+  }
+
+  function updateCaptura(localId, patch) {
+    setCapturas((prev) => prev.map((c) => (c.localId === localId ? { ...c, ...patch } : c)));
   }
 
   async function uploadAndCreateClaim(localId, fileOrBlob) {
@@ -96,7 +103,7 @@ export default function CameraCapture() {
       .upload(fileName, fileOrBlob, { contentType: "image/jpeg" });
 
     if (uploadError) {
-      setCapturas((prev) => prev.map((c) => (c.localId === localId ? { ...c, status: "error" } : c)));
+      updateCaptura(localId, { status: "error" });
       return;
     }
 
@@ -111,13 +118,30 @@ export default function CameraCapture() {
       .single();
 
     if (insertError) {
-      setCapturas((prev) => prev.map((c) => (c.localId === localId ? { ...c, status: "error" } : c)));
+      updateCaptura(localId, { status: "error" });
       return;
     }
 
-    setCapturas((prev) =>
-      prev.map((c) => (c.localId === localId ? { ...c, status: "ok", claimId: claim.id } : c))
-    );
+    updateCaptura(localId, { status: "ok", claimId: claim.id, aiStatus: "analizando" });
+    analizarConIA(localId, claim.id);
+  }
+
+  // No bloquea nada — sigue corriendo en segundo plano mientras se puede
+  // seguir capturando la siguiente reclamación. Si falla o no está
+  // configurada la IA, la reclamación queda igual que antes (para digitar
+  // a mano), solo cambia el estado que se muestra en la miniatura.
+  async function analizarConIA(localId, claimId) {
+    try {
+      const res = await fetch(`/api/claims/${claimId}/analizar`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        updateCaptura(localId, { aiStatus: "no_disponible" });
+        return;
+      }
+      updateCaptura(localId, { aiStatus: data.inciertos > 0 ? "revisar" : "listo" });
+    } catch {
+      updateCaptura(localId, { aiStatus: "no_disponible" });
+    }
   }
 
   const guardadas = capturas.filter((c) => c.status === "ok").length;
@@ -135,7 +159,8 @@ export default function CameraCapture() {
       <p className="mb-3 text-xs text-slate-500">
         La cámara se queda encendida — toma una foto, pasa a la siguiente
         reclamación en papel, y toma la próxima cuando estés listo. No hace
-        falta esperar entre una y otra.
+        falta esperar entre una y otra: cada foto se sube y se lee con IA
+        en segundo plano, sin bloquear la siguiente captura.
       </p>
 
       <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-black">
@@ -184,13 +209,26 @@ export default function CameraCapture() {
               <CapturaThumb key={c.localId} captura={c} />
             ))}
           </div>
+          <p className="mt-2 text-[10px] text-slate-400">
+            🤖 leyendo · ✓ leída por IA · ⚠ leída pero revisa lo marcado · ✍
+            IA no disponible, digitar a mano
+          </p>
         </div>
       )}
     </div>
   );
 }
 
+const AI_BADGES = {
+  analizando: { icon: "🤖", className: "bg-blue-500" },
+  listo: { icon: "✓", className: "bg-emerald-500" },
+  revisar: { icon: "⚠", className: "bg-warn-500" },
+  no_disponible: { icon: "✍", className: "bg-slate-500" },
+};
+
 function CapturaThumb({ captura }) {
+  const aiBadge = captura.status === "ok" ? AI_BADGES[captura.aiStatus] : null;
+
   const content = (
     <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -200,14 +238,16 @@ function CapturaThumb({ captura }) {
           ...
         </div>
       )}
-      {captura.status === "ok" && (
-        <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-tl-lg bg-emerald-500 text-xs text-white">
-          ✓
-        </div>
-      )}
       {captura.status === "error" && (
         <div className="absolute inset-0 flex items-center justify-center bg-red-600/70 text-xs text-white">
           ✕
+        </div>
+      )}
+      {aiBadge && (
+        <div
+          className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-tl-lg text-xs text-white ${aiBadge.className}`}
+        >
+          {aiBadge.icon}
         </div>
       )}
     </div>
