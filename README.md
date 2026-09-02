@@ -80,6 +80,36 @@ Cómo funciona por dentro:
    `ars_id` — si no hay un match claro, se deja sin asignar en vez de
    adivinar y el digitador lo elige a mano.
 
+**Primera prueba real (con letra manuscrita real) — lo que salió mal y se
+corrigió:**
+- **Inventaba datos para campos que no estaban en el formulario** (ej. puso
+  una fecha de vencimiento de autorización que el papel ni tenía). Se
+  reforzó el prompt (`src/lib/ai/extractionPrompt.js`) para insistir en que
+  ante cualquier duda el valor debe quedar `null`, nunca "sonar razonable".
+- **No reconocía el dato cuando la ARS lo nombra distinto** al catálogo de
+  campos interno (ej. "Código del PSS" en el papel debía ir a
+  `doctor_codigo`, "Código asegurado" a `no_carnet_nss`) — se agregaron al
+  prompt los sinónimos reales por los que cada ARS conoce cada campo
+  (documentados originalmente en la sección "Campos reales" de este mismo
+  README).
+- **Una persona escribió un dato en la casilla equivocada del papel**
+  (una cédula en la casilla de "Número de contacto") y la IA no supo
+  qué hacer — se le indicó explícitamente que las personas cometen ese
+  tipo de error al llenar a mano, y que debe fijarse en el FORMATO del
+  dato (forma de cédula, de teléfono, etc.) para ubicarlo en el campo
+  correcto, no solo en la etiqueta de la casilla donde está escrito.
+- Los campos donde la IA tuvo que inferir por sinónimo o por formato (no
+  por una etiqueta exacta) ahora se espera que los marque en
+  `campos_inciertos` también, para que se revisen con más cuidado.
+- **Las fechas se veían en formato mes/día** (08/20/2026) en vez de
+  dominicano — no era un error de la IA (por dentro se guarda bien en
+  AAAA-MM-DD), era que `<input type="date">` nativo del navegador siempre
+  muestra la fecha en el formato del sistema operativo, sin forma de
+  forzarlo por HTML/CSS. Se reemplazó por un campo de texto propio
+  (`DateField` en `ClaimEditor.jsx`) que siempre muestra y acepta
+  `dd/mm/aaaa`, convirtiendo a `AAAA-MM-DD` por dentro para la base de
+  datos.
+
 **Si la IA no está configurada o falla**, la reclamación queda exactamente
 como antes de esta feature: vacía, para digitar a mano — nunca bloquea la
 captura ni la digitación. `ClaimEditor` muestra un aviso arriba del

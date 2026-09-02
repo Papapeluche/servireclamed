@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CLAIM_SECTIONS, REQUIRED_FIELD_NAMES } from "@/lib/claimFields";
@@ -385,6 +385,8 @@ function FieldInput({ field, value, onChange, flagged, onToggleFlag, listId }) {
             </option>
           ))}
         </select>
+      ) : field.type === "date" ? (
+        <DateField value={value} onChange={onChange} flagged={flagged} />
       ) : (
         <input
           type={field.type}
@@ -396,6 +398,54 @@ function FieldInput({ field, value, onChange, flagged, onToggleFlag, listId }) {
       )}
     </div>
   );
+}
+
+// El <input type="date"> nativo se ve bien pero MUESTRA la fecha en el
+// formato del navegador/sistema operativo (a menudo mes/día/año en
+// computadoras configuradas en inglés), sin forma de forzarlo por HTML/CSS
+// — así que para que siempre se vea dd/mm/aaaa (el formato dominicano) se
+// usa un campo de texto propio. Por dentro se sigue guardando en
+// AAAA-MM-DD (lo que espera la columna `date` en la base de datos);
+// `onChange` solo se dispara cuando el texto ya forma una fecha completa.
+function DateField({ value, onChange, flagged }) {
+  const [text, setText] = useState(() => isoToDisplay(value));
+
+  useEffect(() => {
+    setText(isoToDisplay(value));
+  }, [value]);
+
+  function handleChange(e) {
+    const raw = e.target.value;
+    setText(raw);
+    const iso = displayToIso(raw);
+    if (iso) onChange(iso);
+    else if (raw === "") onChange("");
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      placeholder="dd/mm/aaaa"
+      value={text}
+      onChange={handleChange}
+      className={inputClass(flagged)}
+    />
+  );
+}
+
+function isoToDisplay(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso || "";
+  const [, y, mo, d] = m;
+  return `${d}/${mo}/${y}`;
+}
+
+function displayToIso(display) {
+  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo}-${d}`;
 }
 
 function inputClass(flagged) {
