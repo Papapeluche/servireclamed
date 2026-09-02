@@ -57,15 +57,18 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    (igual que el formato real de Senasa: un bloque de encabezado del médico
    más una fila por reclamación), genera el lote (`relación`) y lo exporta a
    Excel listo para entregar o subir al portal de la ARS.
-4. `/plantillas` — en vez de que el formato de exportación esté escrito a
-   mano por ARS, el usuario arma su propia plantilla: qué campos van en el
-   encabezado (datos del médico/ARS, una vez por relación), qué columnas van
-   en la tabla (una por reclamación), con qué etiqueta y en qué orden. Al
-   generar una relación para esa ARS, se usa automáticamente esa plantilla;
-   si no existe, se exporta con un formato genérico razonable. El mismo
-   editor sirve para una futura **"hoja de presentación"** — un tipo de
-   plantilla aparte que se activa cuando el usuario comparta ese formato
-   real; por ahora solo queda guardada, sin exportación propia todavía.
+4. `/plantillas` — la relación de salida que se entrega es, en la práctica,
+   **la misma para todas las ARS** (lo que varía entre ellas es el
+   formulario de reclamación que reciben, no cómo se entrega la relación).
+   Por eso normalmente basta con **una sola plantilla genérica** (sin ARS
+   asignada): qué campos van en el encabezado (datos del médico, una vez
+   por relación), qué columnas van en la tabla (una por reclamación), con
+   qué etiqueta y en qué orden. Esa plantilla genérica se usa para cualquier
+   ARS que no tenga una propia; solo hace falta crear una específica si de
+   verdad alguna ARS pide un formato de entrega distinto. El mismo editor
+   sirve para una futura **"hoja de presentación"** — un tipo de plantilla
+   aparte que se activa cuando el usuario comparta ese formato real; por
+   ahora solo queda guardada, sin exportación propia todavía.
 
 Un mismo formulario en papel a veces trae **más de un procedimiento** (visto
 en Humano y ARS-UASD) — desde `/reclamaciones/[id]` hay un botón "+ Otra
@@ -107,10 +110,12 @@ De ahí salió el catálogo de campos en `src/lib/claimFields.js`:
   distinguen **valor total**, **monto autorizado/cubierto por la ARS**
   (el campo núcleo `monto`) y **copago/diferencia a cargo del afiliado**.
 
-Cada ARS tiene su propio formulario y su propio formato de relación de
-salida. Ya no hace falta escribir una exportación distinta a mano por cada
-una: con `/plantillas`, el usuario define el formato exacto una vez por ARS
-y el sistema lo reutiliza (ver sección de Flujo arriba).
+Cada ARS tiene su propio formulario de entrada, con sus propios campos y en
+distinto orden — pero eso no afecta al formulario de digitación, porque el
+digitador solo llena lo que ve en el papel, sin importar el orden en que
+esté impreso. Lo que sí varía, muy raramente, es el formato de la relación
+de salida — para eso está `/plantillas` (ver sección de Flujo arriba):
+normalmente una sola plantilla genérica sirve para todas las ARS.
 
 **Importante:** los documentos que se compartieron para este análisis tenían
 datos reales de pacientes y médicos (nombres, cédulas, diagnósticos,
@@ -148,9 +153,11 @@ pública). Para crear el primer usuario:
 
 ## Pendientes / decisiones abiertas
 
-- [ ] Armar en `/plantillas` el formato real de relación de cada ARS que
-      falte (por ahora el catálogo de campos ya cubre las 9 ARS revisadas,
-      pero las plantillas hay que crearlas una vez por ARS desde la app).
+- [ ] Armar en `/plantillas` la plantilla genérica de relación con el
+      formato real que ya usan (una sola vez, sin ARS asignada — el
+      catálogo de campos ya cubre las 9 ARS revisadas). Solo hace falta una
+      plantilla específica por ARS si alguna de verdad pide un formato de
+      entrega distinto al estándar.
 - [ ] La "hoja de presentación" — cuando el usuario comparta su formato
       real, sumar la exportación específica para ese tipo de plantilla
       (hoy `export_templates` ya soporta `tipo: hoja_presentacion`, pero

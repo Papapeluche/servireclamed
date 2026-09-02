@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 export default function GenerarRelacionButton({ arsId, doctorNombre, doctorCodigo, templates }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [templateId, setTemplateId] = useState("");
+  // Preferir una plantilla específica de esta ARS; si no hay, usar la
+  // genérica (sin ARS asignada) — normalmente hay solo una y esa basta.
+  const defaultTemplate =
+    templates?.find((t) => t.ars_id === arsId) || templates?.find((t) => !t.ars_id);
+  const [templateId, setTemplateId] = useState(defaultTemplate?.id || "");
 
   async function handleClick() {
     setLoading(true);
@@ -38,7 +42,7 @@ export default function GenerarRelacionButton({ arsId, doctorNombre, doctorCodig
           onChange={(e) => setTemplateId(e.target.value)}
           className="rounded-lg border border-slate-300 px-2 py-2 text-xs"
         >
-          <option value="">Formato genérico</option>
+          <option value="">Formato genérico (sin plantilla)</option>
           {templates.map((t) => (
             <option key={t.id} value={t.id}>
               {t.nombre}

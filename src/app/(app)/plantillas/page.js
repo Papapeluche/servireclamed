@@ -23,10 +23,14 @@ export default async function PlantillasPage() {
       </div>
 
       <p className="mb-4 text-sm text-slate-500">
-        Cada ARS puede tener su propia plantilla: eliges qué campos van en el
-        encabezado (datos del médico) y qué columnas van en la tabla (datos
-        de cada reclamación), en el orden que quieras. Al generar una
-        relación para esa ARS, se usa automáticamente.
+        La relación de salida suele ser la misma para todas las ARS — lo que
+        cambia entre ellas es el formulario de reclamación que reciben, no
+        cómo se entrega la relación. Por eso normalmente basta con{" "}
+        <strong>una sola plantilla genérica</strong> (sin ARS asignada):
+        eliges qué campos van en el encabezado (datos del médico) y qué
+        columnas van en la tabla (datos de cada reclamación), en el orden
+        que quieras. Solo crea una plantilla específica por ARS si de verdad
+        alguna pide un formato de entrega distinto.
       </p>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
