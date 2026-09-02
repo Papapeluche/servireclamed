@@ -81,6 +81,16 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    estándar — ahí se ajustan los campos del encabezado y las columnas o
    categorías, y se le asigna esa ARS específica.
 
+   Al hacer clic en un formato, `/plantillas/[id]` muestra una **vista
+   previa** (con datos de ejemplo, no una relación real) de cómo saldría el
+   documento — encabezado, tabla o categorías, y total — en vez de saltar
+   directo a un formulario de edición. Tiene su propio botón **Imprimir**
+   (usa el diálogo de impresión del navegador, ya con los estilos ajustados
+   para que solo salga el documento, no el resto de la app) y, si eres
+   admin, un botón **Editar** aparte que lleva a `/plantillas/[id]/editar`
+   — la vista previa es de solo lectura y la puede ver cualquiera, pero
+   editar sigue siendo solo para admin.
+
 5. `/medicos` — catálogo de médicos con su **código por ARS** (el código de
    un médico no es el mismo en todas las ARS — se confirmó al cargar la
    primera lista real, de CMD). Al digitar una reclamación, si el médico ya

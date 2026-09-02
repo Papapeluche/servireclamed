@@ -48,29 +48,36 @@ export default async function PlantillasPage() {
               <th className="px-4 py-2">Nombre</th>
               <th className="px-4 py-2">ARS</th>
               <th className="px-4 py-2">Tipo</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {(templates || []).map((t) => (
               <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  {admin ? (
-                    <Link href={`/plantillas/${t.id}`} className="text-brand-600 hover:underline">
-                      {t.nombre}
-                    </Link>
-                  ) : (
-                    t.nombre
-                  )}
+                  <Link href={`/plantillas/${t.id}`} className="text-brand-600 hover:underline">
+                    {t.nombre}
+                  </Link>
                 </td>
                 <td className="px-4 py-2">{t.ars_catalog?.nombre || "Genérica"}</td>
                 <td className="px-4 py-2">
                   {t.tipo === "hoja_presentacion" ? "Hoja de presentación" : "Relación"}
                 </td>
+                <td className="px-4 py-2 text-right">
+                  {admin && (
+                    <Link
+                      href={`/plantillas/${t.id}/editar`}
+                      className="text-xs text-slate-500 hover:text-brand-600 hover:underline"
+                    >
+                      Editar
+                    </Link>
+                  )}
+                </td>
               </tr>
             ))}
             {(!templates || templates.length === 0) && (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
                   Aún no hay plantillas. Las relaciones se exportan con un
                   formato genérico hasta que crees una.
                 </td>

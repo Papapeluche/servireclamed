@@ -63,7 +63,8 @@ export default function TemplateEditor({ template, arsOptions }) {
     setSaving(false);
 
     if (res.ok) {
-      router.push("/plantillas");
+      const data = await res.json().catch(() => ({}));
+      router.push(`/plantillas/${isEditing ? template.id : data.id}`);
       router.refresh();
     } else {
       const { error: msg } = await res.json();
