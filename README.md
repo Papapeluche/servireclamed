@@ -60,34 +60,46 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
 
 ## Campos reales (no genéricos) — basado en documentos que compartió el usuario
 
-Se revisaron dos fuentes reales:
+Se revisaron formularios reales de **6 ARS distintas**:
 
-- Un formulario en papel de **ARS Amor y Paz** (red ASEMAP) — la reclamación
-  individual que llena la secretaria del médico por cada visita de paciente.
-- Dos relaciones ya digitadas de **ARS Senasa** — el formato de salida: un
-  bloque con los datos del médico, una tabla con una fila por reclamación, y
-  el total.
+- **ARS Amor y Paz** (red ASEMAP) — formulario individual en papel.
+- **ARS Senasa** — su formulario individual ("Formulario de Reclamaciones
+  Médicas") y dos relaciones ya digitadas (el formato de salida: un bloque
+  con los datos del médico, una tabla con una fila por reclamación, y el
+  total).
+- **ARS-UASD** — "Formulario de Reclamación de Servicios Médicos".
+- **ARS Yunen** — "Reclamación por Servicio de Salud".
+- **ARS Reservas** — recibo/confirmación de su portal web
+  (arsreservas.com) — confirma que al menos una ARS tiene plataforma propia
+  donde ver/gestionar la reclamación en línea, relevante para una futura
+  integración de "subida directa".
+- **MAPFRE Salud ARS** — "Reclamación de Pago por Servicios Prestados".
 
 De ahí salió el catálogo de campos en `src/lib/claimFields.js`:
 
-- **Núcleo (obligatorio, aparece en ambos documentos):** nombre del
-  afiliado/paciente, no. de carnet/NSS-contrato, **no. de autorización**,
-  fecha del servicio, tipo de servicio, monto.
-- **Resto de los campos son opcionales** porque solo están confirmados en el
-  formulario de Amor y Paz — no sabemos todavía si otras ARS los piden
-  (cédula, edad, código de plan, empleador, diagnóstico, procedimiento,
-  fechas de ingreso/alta, habitación, copago, datos del médico).
+- **Núcleo (obligatorio, aparece en casi todas):** nombre del
+  afiliado/paciente, no. de carnet/NSS, **no. de autorización**, fecha del
+  servicio, tipo de servicio, monto autorizado/reclamado.
+- **Resto de los campos son opcionales** porque no todas las ARS los piden
+  igual: cédula, edad, sexo, titular/dependiente, código de afiliado, NAF,
+  plan, dirección, ciudad, correo, empleador, diagnóstico, procedimiento
+  (CUPS), valor total del servicio, copago/diferencia, "no procede" (cuando
+  la ARS rechaza parte), fechas de ingreso/alta, días de internamiento,
+  habitación, y los datos del médico.
+- El monto casi nunca es un solo número: la mayoría de los formularios
+  distinguen **valor total**, **monto autorizado/cubierto por la ARS**
+  (el campo núcleo `monto`) y **copago/diferencia a cargo del afiliado**.
 
 Cada ARS tiene su propio formulario y su propio formato de relación de
 salida — por ahora solo la exportación de Senasa está calcada exactamente
-(`src/app/api/relaciones/[id]/export/route.js`). Cuando lleguen formularios
-reales de otras ARS, hay que revisar si el catálogo de campos les sirve tal
-cual o si hace falta un formato de exportación distinto por ARS.
+(`src/app/api/relaciones/[id]/export/route.js`). Cuando se defina el formato
+de salida esperado por las otras 5 ARS, hay que sumar su propia plantilla de
+exportación (el catálogo de campos ya cubre lo que piden).
 
 **Importante:** los documentos que se compartieron para este análisis tenían
 datos reales de pacientes y médicos (nombres, cédulas, diagnósticos,
-teléfonos). Esa información nunca se copió a este repositorio ni a la base
-de datos — solo se usó la estructura de campos.
+teléfonos, correos). Esa información nunca se copió a este repositorio ni a
+la base de datos — solo se usó la estructura de campos.
 
 ## Modelo de datos (genérico — punto de partida)
 
