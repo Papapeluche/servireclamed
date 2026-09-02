@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { askQwenVision, parseJsonResponse, isQwenConfigured } from "@/lib/ai/qwen";
+import { askGeminiVision, isGeminiConfigured } from "@/lib/ai/gemini";
+import { parseJsonResponse } from "@/lib/ai/json";
 import { buildExtractionPrompt } from "@/lib/ai/extractionPrompt";
 import { ALL_FIELD_NAMES, FIELD_BY_NAME } from "@/lib/claimFields";
 
@@ -28,11 +29,11 @@ export async function POST(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  if (!isQwenConfigured()) {
+  if (!isGeminiConfigured()) {
     return NextResponse.json(
       {
         error:
-          "Falta configurar DASHSCOPE_API_KEY en el servidor — sin eso no se puede leer la reclamación automáticamente. La reclamación queda pendiente de digitar a mano mientras tanto.",
+          "Falta configurar GEMINI_API_KEY en el servidor — sin eso no se puede leer la reclamación automáticamente. La reclamación queda pendiente de digitar a mano mientras tanto.",
       },
       { status: 501 }
     );
@@ -68,9 +69,9 @@ export async function POST(request, { params }) {
   try {
     const imgRes = await fetch(signed.signedUrl);
     const buf = Buffer.from(await imgRes.arrayBuffer());
-    const dataUri = `data:image/jpeg;base64,${buf.toString("base64")}`;
+    const base64 = buf.toString("base64");
 
-    const raw = await askQwenVision(dataUri, buildExtractionPrompt());
+    const raw = await askGeminiVision(base64, "image/jpeg", buildExtractionPrompt());
     extracted = parseJsonResponse(raw);
   } catch (err) {
     await supabase.from("claims").update({ ai_error: String(err.message || err).slice(0, 500) }).eq("id", id);

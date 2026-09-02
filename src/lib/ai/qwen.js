@@ -1,3 +1,9 @@
+// SIN USAR por ahora — src/app/api/claims/[id]/analizar/route.js quedó en
+// Gemini (src/lib/ai/gemini.js) porque activar qwen-vl-max/plus en la
+// consola de Alibaba Cloud dio problemas (AccessDenied.Unpurchased) que no
+// se lograron resolver. Se deja el cliente aquí por si se retoma más
+// adelante — no hace falta borrarlo, solo no está conectado a nada.
+//
 // Cliente mínimo para Qwen-VL vía DashScope (Alibaba Cloud), usando su
 // endpoint "compatible mode" (mismo formato que la API de chat completions
 // de OpenAI) para no depender de su SDK propio.
@@ -55,15 +61,4 @@ export async function askQwenVision(imageBase64, prompt) {
     throw new Error("DashScope no devolvió contenido en la respuesta.");
   }
   return content;
-}
-
-// El modelo a veces envuelve el JSON en ```json ... ``` a pesar de que se
-// le pide que no lo haga — se limpia antes de parsear.
-export function parseJsonResponse(text) {
-  const cleaned = text
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-  return JSON.parse(cleaned);
 }

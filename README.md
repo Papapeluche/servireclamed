@@ -26,20 +26,27 @@ IA solo cuando el costo por imagen fuera prácticamente nulo:
   validación estructural y visor de imagen con zoom. Sin IA, sin costo por
   reclamación.
 - **Fase 2 — YA ACTIVA:** cada reclamación capturada se manda automático a
-  **Qwen-VL** (Alibaba Cloud, vía DashScope) para que lea la foto y
-  prellene el formulario completo — el digitador ya no transcribe desde
-  cero, solo **verifica y corrige** lo que la IA no pudo leer bien. Ver
-  "Lectura automática con IA" más abajo. Costo real por imagen: fracciones
-  de centavo (o $0 dentro de la cuota gratis de DashScope), muy lejos de lo
-  que costaría un modelo de visión de OpenAI/Anthropic al volumen de este
-  negocio (cientos de imágenes/día).
+  **Google Gemini** para que lea la foto y prellene el formulario completo
+  — el digitador ya no transcribe desde cero, solo **verifica y corrige**
+  lo que la IA no pudo leer bien. Ver "Lectura automática con IA" más
+  abajo. Costo real por imagen: dentro de la cuota gratis de Gemini para el
+  volumen de este negocio (cientos de imágenes/día), muy lejos de lo que
+  costaría un modelo de visión más caro.
+  - *Nota:* se probó primero con **Qwen-VL** (Alibaba Cloud, vía
+    DashScope) por preferencia inicial del usuario, pero la cuenta daba
+    `AccessDenied.Unpurchased` al llamar el modelo (hace falta activarlo
+    aparte en la consola de Alibaba Cloud, paso que no se logró resolver
+    en el momento) — se cambió a Gemini porque su capa gratis no tiene
+    ningún paso de activación de modelo. El cliente de Qwen-VL
+    (`src/lib/ai/qwen.js`) se dejó en el código, sin usar, por si se
+    retoma más adelante.
 - **Fase 3 (si algún día hiciera falta más precisión en un caso puntual):**
   usar un modelo de visión más caro (ej. Claude/GPT) *solo* en los campos
-  que quedaron marcados como inciertos después de Qwen-VL, nunca en la
+  que quedaron marcados como inciertos después de Gemini, nunca en la
   reclamación completa — el gasto quedaría proporcional a lo que de verdad
   es difícil de leer, no al volumen total. No ha sido necesario todavía.
 
-## Lectura automática con IA (Qwen-VL)
+## Lectura automática con IA (Google Gemini)
 
 Cuando se captura una reclamación (`/capturar`), justo después de subir la
 foto y crear el registro, el sistema llama en segundo plano a
@@ -53,10 +60,11 @@ Cómo funciona por dentro:
    (`src/lib/claimFields.js`) — si mañana se agrega un campo nuevo al
    formulario, la IA automáticamente empieza a pedirlo también, sin tocar
    el prompt a mano.
-2. Se manda la foto (como imagen en base64) + el prompt a Qwen-VL
-   (`qwen-vl-max` por defecto) vía el endpoint "compatible mode" de
-   DashScope (mismo formato que la API de chat de OpenAI, para no depender
-   de un SDK propio de Alibaba) — `src/lib/ai/qwen.js`.
+2. Se manda la foto (como imagen en base64) + el prompt a **Gemini**
+   (`gemini-2.0-flash` por defecto) — `src/lib/ai/gemini.js`. Se pide la
+   respuesta forzada en JSON (`generationConfig.responseMimeType:
+   "application/json"`, algo que Gemini soporta nativo), así que no hace
+   falta ni limpiar bloques de \`\`\`markdown alrededor del JSON.
 3. El modelo devuelve un JSON con cada campo que pudo leer, más un array
    `campos_inciertos` con los que llenó pero de los que no está seguro
    (letra ambigua, tachada, etc.).
@@ -77,12 +85,11 @@ formulario ("Prellenado por IA" o "Esta reclamación no se ha leído con
 IA") con un botón para **leer/releer con IA** en cualquier momento (útil si
 la primera lectura falló, o si se retoca la imagen).
 
-**Configuración necesaria** (`DASHSCOPE_API_KEY` en `.env.local` y en
-Vercel — ver `.env.example`): se saca gratis en
-`https://modelstudio.console.alibabacloud.com` (cuenta internacional, tiene
-cuota de bienvenida sin tarjeta). Sin esa variable, `/api/claims/[id]/analizar`
-devuelve un error claro y la app sigue funcionando 100% manual, como
-siempre pudo.
+**Configuración necesaria** (`GEMINI_API_KEY` en `.env.local` y en Vercel
+— ver `.env.example`): se saca gratis, **sin ningún paso de activación de
+modelo**, en `https://aistudio.google.com/apikey`. Sin esa variable,
+`/api/claims/[id]/analizar` devuelve un error claro y la app sigue
+funcionando 100% manual, como siempre pudo.
 
 ## Stack
 
@@ -573,16 +580,20 @@ separaron en columnas propias en `claims`. Ahora se ve en la práctica:
       desde este entorno de desarrollo. Si dispara muy seguido (con solo
       temblor de mano) o muy poco (exige demasiada quietud), son esos
       números los que hay que subir/bajar.
-- [ ] **Probar la lectura con IA con una llave real de DashScope.** Se
-      integró contra el endpoint "compatible mode" de DashScope (formato
-      documentado, igual al de OpenAI) pero no se pudo probar en vivo desde
-      este entorno de desarrollo — el sandbox donde se construyó no tiene
-      salida de red hacia `dashscope-intl.aliyuncs.com`. En Vercel sí debería
-      funcionar normal (ahí la salida a internet es abierta), pero conviene
-      probar la primera captura real con cuidado por si el formato exacto
-      de la respuesta de DashScope difiere un poco de lo documentado — si
-      algo falla, el error queda guardado en `claims.ai_error` para poder
-      diagnosticarlo.
+- [ ] **Probar la lectura con IA con una llave real de Gemini.** Se integró
+      contra la API documentada de Gemini (`generateContent`, con
+      `responseMimeType: "application/json"`) pero no se pudo probar en
+      vivo desde este entorno de desarrollo — el sandbox donde se construyó
+      no tiene salida de red hacia `generativelanguage.googleapis.com`. En
+      Vercel sí debería funcionar normal (ahí la salida a internet es
+      abierta), pero conviene probar la primera captura real con cuidado —
+      si algo falla, el error queda guardado en `claims.ai_error` (visible
+      directo en `/reclamaciones/[id]`) para poder diagnosticarlo.
+- [ ] Si algún día se resuelve el `AccessDenied.Unpurchased` de Qwen-VL en
+      la consola de Alibaba Cloud, el cliente ya existe
+      (`src/lib/ai/qwen.js`) — solo faltaría volver a apuntar
+      `/api/claims/[id]/analizar` a `askQwenVision` en vez de
+      `askGeminiVision`.
 - [ ] Ver la cámara del celular **en tiempo real desde la PC** (tipo
       videollamada/WebRTC) mientras se escanea — se evaluó y por ahora no se
       construyó, es una función bastante más compleja que la captura
