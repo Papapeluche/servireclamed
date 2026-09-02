@@ -13,7 +13,7 @@ export default async function PlantillasPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-900">Plantillas de relación</h1>
+        <h1 className="text-lg font-semibold text-slate-900">Formatos (plantillas)</h1>
         <Link
           href="/plantillas/nueva"
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
@@ -23,14 +23,16 @@ export default async function PlantillasPage() {
       </div>
 
       <p className="mb-4 text-sm text-slate-500">
-        La relación de salida suele ser la misma para todas las ARS — lo que
-        cambia entre ellas es el formulario de reclamación que reciben, no
-        cómo se entrega la relación. Por eso normalmente basta con{" "}
-        <strong>una sola plantilla genérica</strong> (sin ARS asignada):
-        eliges qué campos van en el encabezado (datos del médico) y qué
-        columnas van en la tabla (datos de cada reclamación), en el orden
-        que quieras. Solo crea una plantilla específica por ARS si de verdad
-        alguna pide un formato de entrega distinto.
+        Ya vienen dos formatos genéricos listos de fábrica — uno para
+        relación y otro para hoja de presentación — así que{" "}
+        <strong>normalmente nunca hace falta entrar aquí</strong>: desde{" "}
+        <Link href="/relaciones" className="text-brand-600 hover:underline">
+          Relaciones
+        </Link>{" "}
+        conviertes directo con esos formatos. Esta pantalla es solo para
+        cuando una ARS en particular pida un formato de entrega distinto al
+        estándar: aquí ajustas qué campos van en el encabezado y qué
+        columnas o categorías lleva, y le asignas esa ARS específica.
       </p>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">

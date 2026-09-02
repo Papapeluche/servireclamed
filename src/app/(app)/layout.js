@@ -23,7 +23,7 @@ export default async function AppLayout({ children }) {
               Relaciones
             </Link>
             <Link href="/plantillas" className="hover:text-brand-600">
-              Plantillas
+              Formatos
             </Link>
             <Link href="/medicos" className="hover:text-brand-600">
               Médicos

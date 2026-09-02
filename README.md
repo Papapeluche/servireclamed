@@ -53,19 +53,27 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    izquierda, formulario estructurado a la derecha. Cada campo tiene un
    botón "¿No se entiende?" que lo marca para revisión posterior. No se
    puede marcar "revisado" sin llenar los campos obligatorios.
-3. `/relaciones` — agrupa las reclamaciones ya revisadas por **ARS + médico**
-   (igual que el formato real de Senasa: un bloque de encabezado del médico
-   más una fila por reclamación), genera el lote (`relación`) y lo exporta a
-   Excel listo para entregar o subir al portal de la ARS.
-4. `/plantillas` — la relación de salida que se entrega es, en la práctica,
-   **la misma para todas las ARS** (lo que varía entre ellas es el
-   formulario de reclamación que reciben, no cómo se entrega la relación).
-   Por eso normalmente basta con **una sola plantilla genérica** (sin ARS
-   asignada): qué campos van en el encabezado (datos del médico, una vez
-   por relación), qué columnas van en la tabla (una por reclamación), con
-   qué etiqueta y en qué orden. Esa plantilla genérica se usa para cualquier
-   ARS que no tenga una propia; solo hace falta crear una específica si de
-   verdad alguna ARS pide un formato de entrega distinto.
+3. `/relaciones` — **se organiza sola, sin que nadie tenga que "crear" nada
+   a mano.** A medida que se digita, cada reclamación revisada se agrupa
+   automáticamente por **ARS + médico** en tarjetas vivas (igual que el
+   formato real de Senasa: un médico, un bloque de encabezado, una fila por
+   reclamación). Cada tarjeta muestra cuántas van pendientes, en proceso y
+   revisadas — así se ve el avance de un lote completo (aunque sean 600
+   reclamaciones de golpe) desde el primer escaneo, no solo al final.
+   En cuanto una tarjeta tiene al menos una reclamación revisada, aparecen
+   dos botones: **"Convertir en plantilla"** (el Excel de la relación, con
+   los datos reales de los pacientes) y **"Convertir en hoja de
+   presentación"** (la factura). El primer clic en cualquiera de los dos
+   crea la relación por dentro (mueve esas reclamaciones a `en_relacion`);
+   si después haces clic en el otro botón, reutiliza esa misma relación en
+   vez de crear una segunda.
+4. `/plantillas` (menú "Formatos") — ya vienen **dos formatos genéricos
+   listos de fábrica** ("Relación estándar" y "Hoja de presentación
+   estándar"), así que en el día a día nunca hace falta entrar aquí: los
+   botones de `/relaciones` los usan solos. Esta pantalla es solo para
+   cuando una ARS en particular pide un formato de entrega distinto al
+   estándar — ahí se ajustan los campos del encabezado y las columnas o
+   categorías, y se le asigna esa ARS específica.
 
 5. `/medicos` — catálogo de médicos con su **código por ARS** (el código de
    un médico no es el mismo en todas las ARS — se confirmó al cargar la
@@ -81,9 +89,10 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    arma *después* de tener la relación lista, agrupando las reclamaciones
    en categorías de facturación (ej. Consultas, Procedimientos
    ambulatorios, Honorarios/Emergencias) en vez de una fila por
-   reclamación. Se genera desde el historial de `/relaciones` (botón
-   "Hoja de presentación"), usando una plantilla `tipo: hoja_presentacion`
-   creada en `/plantillas` — ahí se definen las categorías y qué tipos de
+   reclamación. Se genera con el botón "Convertir en hoja de presentación"
+   (desde la tarjeta viva en `/relaciones`, o desde el Historial para una
+   relación ya generada antes), usando una plantilla `tipo:
+   hoja_presentacion` — ahí se definen las categorías y qué tipos de
    servicio caen en cada una. La plantilla es el punto de partida, no una
    camisa de fuerza: al generar, el botón abre un panel con casillas para
    cada campo del encabezado y cada categoría, así que si esta vez no hace
@@ -91,8 +100,7 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    hospitalización) se desmarca y no sale en el Excel — sin tener que crear
    una plantilla nueva solo por eso. Ya existe una plantilla real para
    **ARS CMD** (`Hoja de presentación CMD`), calcada de una factura real que
-   compartió
-   el usuario.
+   compartió el usuario.
 
 7. `/comprobantes` — cada médico tiene un rango limitado de **NCF**
    (Número de Comprobante Fiscal, el número de factura exigido por la
