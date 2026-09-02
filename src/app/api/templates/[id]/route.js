@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/auth";
 
 export async function PATCH(request, { params }) {
   const { id } = await params;
@@ -27,7 +28,7 @@ export async function PATCH(request, { params }) {
     .from("export_templates")
     .update(payload)
     .eq("id", id)
-    .select("id");
+    .select("id, nombre");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data || data.length === 0) {
     return NextResponse.json(
@@ -35,13 +36,25 @@ export async function PATCH(request, { params }) {
       { status: 403 }
     );
   }
+
+  await logAudit(supabase, {
+    action: "PLANTILLA_EDITADA",
+    targetType: "export_template",
+    targetId: id,
+    details: { nombre: data[0].nombre, cambios: Object.keys(payload) },
+  });
+
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data, error } = await supabase.from("export_templates").delete().eq("id", id).select("id");
+  const { data, error } = await supabase
+    .from("export_templates")
+    .delete()
+    .eq("id", id)
+    .select("id, nombre");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data || data.length === 0) {
     return NextResponse.json(
@@ -49,5 +62,13 @@ export async function DELETE(request, { params }) {
       { status: 403 }
     );
   }
+
+  await logAudit(supabase, {
+    action: "PLANTILLA_ELIMINADA",
+    targetType: "export_template",
+    targetId: id,
+    details: { nombre: data[0].nombre },
+  });
+
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/auth";
 
 export async function PATCH(request, { params }) {
   const { id } = await params;
@@ -23,7 +24,7 @@ export async function DELETE(request, { params }) {
   // Con RLS, un DELETE sin permiso no da error: simplemente no borra nada.
   // Hay que pedir de vuelta la fila borrada para distinguir "no tenías
   // permiso" de "sí se borró".
-  const { data, error } = await supabase.from("doctors").delete().eq("id", id).select("id");
+  const { data, error } = await supabase.from("doctors").delete().eq("id", id).select("id, nombre");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data || data.length === 0) {
     return NextResponse.json(
@@ -31,5 +32,13 @@ export async function DELETE(request, { params }) {
       { status: 403 }
     );
   }
+
+  await logAudit(supabase, {
+    action: "DOCTOR_ELIMINADO",
+    targetType: "doctor",
+    targetId: id,
+    details: { nombre: data[0].nombre },
+  });
+
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
 import { HEADER_FIELD_LABELS } from "@/lib/relacionFields";
+import { logAudit } from "@/lib/auth";
 
 export async function POST(request, { params }) {
   const { id } = await params;
@@ -122,6 +123,18 @@ export async function POST(request, { params }) {
     .from("relaciones")
     .update({ hoja_generada_at: new Date().toISOString() })
     .eq("id", id);
+
+  await logAudit(supabase, {
+    action: "HOJA_PRESENTACION_GENERADA",
+    targetType: "relacion",
+    targetId: id,
+    details: {
+      ars: relacion.ars_catalog?.nombre,
+      doctor: relacion.doctor_nombre,
+      total_monto: relacion.total_monto,
+      ncf: comprobante?.numero || null,
+    },
+  });
 
   const relacionValues = {
     fecha: relacion.fecha,

@@ -4,6 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
   const { ars_id, codigo } = await request.json();
 
   if (!ars_id || !codigo?.trim()) {
@@ -21,6 +29,14 @@ export async function POST(request, { params }) {
 export async function DELETE(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
   const { ars_id } = await request.json();
 
   if (!ars_id) {

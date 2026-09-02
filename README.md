@@ -335,13 +335,21 @@ npm run dev
 Por ahora no hay pantalla de registro (es una herramienta interna, no
 pública). Para crear el primer usuario:
 
+Si ya hay un admin, lo más simple es crear la cuenta directo desde
+`/configuracion/usuarios` (ver siguiente sección) — ya sale con el rol que
+se elija desde el principio. Para el primer usuario del proyecto, antes de
+que exista un admin:
+
 1. Entra al dashboard de Supabase del proyecto → **Authentication → Users →
    Add user** (con email + password).
 2. Ese usuario ya puede entrar en `/login`. Se le crea automáticamente su
    fila en `profiles` con rol `digitador`.
-3. Para subirle el rol a `admin` o `supervisor`, un admin ya existente lo
-   hace desde `/usuarios` en la app (ver siguiente sección) — ya no hace
-   falta tocar la base de datos a mano para esto.
+3. Para subirlo a `admin`, hay que hacerlo una sola vez a mano en la base de
+   datos (`update profiles set role = 'admin' where id = '...'`) — el
+   trigger que evita la auto-escalación de rol bloquea cualquier otro
+   camino a propósito, así que no hay forma de crear el primer admin desde
+   la app misma. Una vez que existe un admin, todo lo demás (crear más
+   usuarios, subir/bajar roles) ya se hace desde `/configuracion/usuarios`.
 
 ## Gobernanza de usuarios — roles y atribución
 
@@ -381,10 +389,46 @@ mente se construyó gobernanza real:
   fingir que sí se guardó cuando RLS calladamente no afectó ninguna fila
   (bug real que existía en `/api/doctors/[id]` DELETE y `/api/templates/[id]`).
 
-**`/usuarios`** (solo admin) — lista de todos los usuarios con su rol, y un
-selector para cambiarlo ahí mismo. Todavía no hay forma de invitar/crear
-cuentas desde la app (sigue siendo por el dashboard de Supabase), pero
-subir/bajar el rol de alguien ya no requiere tocar la base de datos.
+### `/configuracion` (solo admin) — usuarios + historial de actividad
+
+Reemplaza la pantalla suelta `/usuarios` de la primera versión. Dos pestañas:
+
+**Usuarios** (`/configuracion/usuarios`) — ya no depende del dashboard de
+Supabase para lo del día a día:
+- **Crear cuenta nueva** directo desde la app (correo, contraseña, nombre,
+  rol) — antes esto era manual desde Supabase.
+- **Editar nombre** de cualquier usuario, en línea en la misma tabla.
+- **Cambiar rol** con un selector (como ya existía).
+- **Resetear contraseña** de cualquier usuario (para cuando alguien la
+  olvida y no hay flujo de "olvidé mi contraseña" para uso interno).
+
+Crear cuentas y resetear contraseñas necesitan la **llave de servicio** de
+Supabase (`SUPABASE_SERVICE_ROLE_KEY`, variable de entorno privada — nunca
+`NEXT_PUBLIC_*`, nunca en el navegador) porque son operaciones de
+administración de Auth que la llave anónima no puede hacer. Se saca del
+dashboard de Supabase → **Project Settings → API → service_role** y se
+agrega en `.env.local` y en Vercel. Sin esa variable, esas dos acciones
+devuelven un error explicando qué falta, en vez de fallar oscuro — el resto
+de `/configuracion` (roles, nombres, el historial) funciona igual sin ella.
+
+**Actividad** (`/configuracion/actividad`) — el "registro pulcro e
+inviolable" que se pidió. Dos decisiones de diseño para que sea de verdad
+inviolable, no solo "no hay botón para borrarlo en la UI":
+1. La tabla `audit_log` en Postgres **no tiene ninguna política RLS de
+   INSERT/UPDATE/DELETE** para ningún rol — ni siquiera un admin puede
+   editar o borrar una fila ya escrita desde la app, sea a propósito o por
+   error.
+2. La única forma de escribir es la función `log_audit_event()`
+   (`SECURITY DEFINER`), que decide el actor internamente desde `auth.uid()`
+   del lado del servidor — nadie puede insertar una fila fingiendo ser otro
+   usuario.
+
+Qué se registra (deliberadamente selectivo, para que sea *pulcro* y no un
+volcado de todo — el trabajo diario normal de digitar ya tiene su propia
+atribución en cada registro, no hace falta duplicarlo aquí):
+médico eliminado, formato creado/editado/eliminado, comprobantes asignados,
+comprobante anulado, hoja de presentación generada, y cambios de cuenta
+(usuario creado, rol cambiado, nombre editado, contraseña reseteada).
 
 **Atribución — "quién hizo qué":** antes `captured_by` no existía y
 `digitized_by` se pisaba (el que tomaba la foto y el que la transcribía
@@ -406,9 +450,6 @@ separaron en columnas propias en `claims`. Ahora se ve en la práctica:
       caso de uso real: no hace falta ver la cámara desde la PC si el
       celular sube cada foto casi al instante y el dashboard se
       auto-refresca cada 15s.
-- [ ] Invitar/crear usuarios nuevos desde `/usuarios` (hoy sigue siendo
-      manual desde el dashboard de Supabase — lo que sí se puede hacer
-      desde la app es subir/bajar el rol de alguien que ya tiene cuenta).
 - [ ] Catálogo propio de **centros médicos** (tabla `centros_medicos`, con
       su propia dirección/teléfono, y `doctors.centro_medico_id` como FK en
       vez del texto libre actual). Hoy `/medicos` agrupa por el texto tal

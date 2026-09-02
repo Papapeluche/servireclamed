@@ -33,3 +33,21 @@ export async function getProfilesMap(supabase) {
   }
   return map;
 }
+
+// Escribe una fila en audit_log a través de la función de base de datos
+// (nunca insertando directo a la tabla). El actor lo resuelve la función
+// desde auth.uid() del lado del servidor, no algo que mande el caller —
+// así no se puede falsificar quién hizo la acción. No lanza si falla: un
+// error de auditoría no debe tumbar la acción real que se estaba logueando.
+export async function logAudit(supabase, { action, targetType = null, targetId = null, details = null }) {
+  try {
+    await supabase.rpc("log_audit_event", {
+      p_action: action,
+      p_target_type: targetType,
+      p_target_id: targetId,
+      p_details: details,
+    });
+  } catch {
+    // silencioso a propósito — ver comentario arriba
+  }
+}

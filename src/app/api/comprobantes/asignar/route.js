@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile, isSupervisorOrAdmin, logAudit } from "@/lib/auth";
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -9,6 +10,14 @@ export async function POST(request) {
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
+  const me = await getCurrentProfile(supabase);
+  if (!isSupervisorOrAdmin(me)) {
+    return NextResponse.json(
+      { error: "Solo un admin o supervisor puede asignar comprobantes nuevos." },
+      { status: 403 }
+    );
   }
 
   const { doctor_id, prefijo, numero_inicial, cantidad, vencimiento } = await request.json();
@@ -45,6 +54,13 @@ export async function POST(request) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await logAudit(supabase, {
+    action: "COMPROBANTES_ASIGNADOS",
+    targetType: "doctor",
+    targetId: doctor_id,
+    details: { prefijo: prefix, numero_inicial: inicialNum, cantidad: cantidadNum, vencimiento: vencimiento || null },
+  });
 
   return NextResponse.json({ ok: true, creados: cantidadNum });
 }

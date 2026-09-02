@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile, isAdmin, logAudit } from "@/lib/auth";
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -25,6 +26,11 @@ export async function POST(request) {
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
+  const me = await getCurrentProfile(supabase);
+  if (!isAdmin(me)) {
+    return NextResponse.json({ error: "Solo un admin puede crear formatos." }, { status: 403 });
   }
 
   const body = await request.json();
@@ -62,5 +68,13 @@ export async function POST(request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit(supabase, {
+    action: "PLANTILLA_CREADA",
+    targetType: "export_template",
+    targetId: data.id,
+    details: { nombre, tipo: tipo || "relacion" },
+  });
+
   return NextResponse.json({ id: data.id });
 }

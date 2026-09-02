@@ -31,8 +31,8 @@ export default async function AppLayout({ children }) {
               Comprobantes
             </Link>
             {isAdmin(me) && (
-              <Link href="/usuarios" className="hover:text-brand-600">
-                Usuarios
+              <Link href="/configuracion" className="hover:text-brand-600">
+                Configuración
               </Link>
             )}
           </nav>
