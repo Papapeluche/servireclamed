@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CLAIM_SECTIONS, REQUIRED_FIELD_NAMES } from "@/lib/claimFields";
 import ImageZoomViewer from "@/components/ImageZoomViewer";
 
-export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
+export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [] }) {
   const router = useRouter();
   const [values, setValues] = useState(() => {
     const initial = {};
@@ -31,6 +31,33 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
 
   function updateField(name, value) {
     setValues((v) => ({ ...v, [name]: value }));
+  }
+
+  // Médicos que tienen código registrado para la ARS seleccionada (o todos,
+  // si aún no se ha elegido ARS).
+  const doctorsForArs = useMemo(() => {
+    if (!values.ars_id) return doctors;
+    return doctors.filter((d) =>
+      (d.doctor_ars_codigos || []).some((c) => c.ars_id === values.ars_id)
+    );
+  }, [doctors, values.ars_id]);
+
+  function handleDoctorNombreChange(name) {
+    updateField("doctor_nombre", name);
+
+    const match = doctors.find((d) => d.nombre.trim().toLowerCase() === name.trim().toLowerCase());
+    if (!match) return;
+
+    const codigoForArs = (match.doctor_ars_codigos || []).find((c) => c.ars_id === values.ars_id);
+
+    setValues((v) => ({
+      ...v,
+      doctor_nombre: match.nombre,
+      doctor_cedula: match.cedula || v.doctor_cedula,
+      especialidad: match.especialidad || v.especialidad,
+      centro_medico: match.centro_medico || v.centro_medico,
+      doctor_codigo: codigoForArs ? codigoForArs.codigo : v.doctor_codigo,
+    }));
   }
 
   function toggleLowConfidence(name) {
@@ -185,14 +212,25 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
                   key={field.name}
                   field={field}
                   value={values[field.name]}
-                  onChange={(val) => updateField(field.name, val)}
+                  onChange={(val) =>
+                    field.name === "doctor_nombre"
+                      ? handleDoctorNombreChange(val)
+                      : updateField(field.name, val)
+                  }
                   flagged={lowConfidence.has(field.name)}
                   onToggleFlag={() => toggleLowConfidence(field.name)}
+                  listId={field.name === "doctor_nombre" ? "doctors-list" : undefined}
                 />
               ))}
             </div>
           </fieldset>
         ))}
+
+        <datalist id="doctors-list">
+          {doctorsForArs.map((d) => (
+            <option key={d.id} value={d.nombre} />
+          ))}
+        </datalist>
 
         {message && (
           <p
@@ -239,7 +277,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
   );
 }
 
-function FieldInput({ field, value, onChange, flagged, onToggleFlag }) {
+function FieldInput({ field, value, onChange, flagged, onToggleFlag, listId }) {
   const isWide = field.type === "textarea";
 
   return (
@@ -280,6 +318,7 @@ function FieldInput({ field, value, onChange, flagged, onToggleFlag }) {
           type={field.type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          list={listId}
           className={inputClass(flagged)}
         />
       )}

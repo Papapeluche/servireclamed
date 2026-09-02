@@ -8,9 +8,12 @@ export default async function ReclamacionPage({ params }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: claim, error }, { data: arsOptions }] = await Promise.all([
+  const [{ data: claim, error }, { data: arsOptions }, { data: doctors }] = await Promise.all([
     supabase.from("claims").select("*").eq("id", id).single(),
     supabase.from("ars_catalog").select("id, nombre").eq("activo", true).order("nombre"),
+    supabase
+      .from("doctors")
+      .select("id, nombre, cedula, especialidad, centro_medico, doctor_ars_codigos(ars_id, codigo)"),
   ]);
 
   if (error || !claim) notFound();
@@ -24,6 +27,7 @@ export default async function ReclamacionPage({ params }) {
       claim={claim}
       imageUrl={signedUrl?.signedUrl}
       arsOptions={arsOptions || []}
+      doctors={doctors || []}
     />
   );
 }

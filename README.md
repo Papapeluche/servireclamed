@@ -70,6 +70,13 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    aparte que se activa cuando el usuario comparta ese formato real; por
    ahora solo queda guardada, sin exportación propia todavía.
 
+5. `/medicos` — catálogo de médicos con su **código por ARS** (el código de
+   un médico no es el mismo en todas las ARS — se confirmó al cargar la
+   primera lista real, de CMD). Al digitar una reclamación, si el médico ya
+   está en el catálogo, sus datos (código para esa ARS, cédula,
+   especialidad, centro) se auto-completan en vez de tener que escribirlos
+   a mano cada vez — menos digitación, menos error.
+
 Un mismo formulario en papel a veces trae **más de un procedimiento** (visto
 en Humano y ARS-UASD) — desde `/reclamaciones/[id]` hay un botón "+ Otra
 línea de esta misma imagen" que crea una segunda reclamación reutilizando la
@@ -121,6 +128,14 @@ normalmente una sola plantilla genérica sirve para todas las ARS.
 datos reales de pacientes y médicos (nombres, cédulas, diagnósticos,
 teléfonos, correos). Esa información nunca se copió a este repositorio ni a
 la base de datos — solo se usó la estructura de campos.
+
+**Excepción deliberada — catálogo de médicos:** a diferencia de los ejemplos
+de reclamaciones (que eran solo para entender la estructura), las listas de
+médicos que el usuario comparte sí se cargan tal cual a la tabla `doctors` /
+`doctor_ars_codigos` — es su propio catálogo de negocio (nombre, cédula,
+código por ARS), no un dato de paciente, y es literalmente el contenido que
+esa parte de la app existe para guardar. Se va armando ARS por ARS a medida
+que el usuario manda cada lista.
 
 ## Modelo de datos (genérico — punto de partida)
 
