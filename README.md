@@ -84,12 +84,18 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    Al hacer clic en un formato, `/plantillas/[id]` muestra una **vista
    previa** (con datos de ejemplo, no una relación real) de cómo saldría el
    documento — encabezado, tabla o categorías, y total — en vez de saltar
-   directo a un formulario de edición. Tiene su propio botón **Imprimir**
-   (usa el diálogo de impresión del navegador, ya con los estilos ajustados
-   para que solo salga el documento, no el resto de la app) y, si eres
-   admin, un botón **Editar** aparte que lleva a `/plantillas/[id]/editar`
-   — la vista previa es de solo lectura y la puede ver cualquiera, pero
-   editar sigue siendo solo para admin.
+   directo a un formulario de edición. Tres botones:
+   - **Descargar en Excel** — genera el mismo .xlsx que se descargaría al
+     usar este formato de verdad, pero con datos de ejemplo
+     (`/api/templates/[id]/preview-export`, misma lógica de valores de
+     muestra que la vista en pantalla — `src/lib/sampleData.js` — para que
+     ambas coincidan).
+   - **Imprimir** — el diálogo de impresión del navegador, con estilos ya
+     ajustados para que solo salga el documento, no el resto de la app.
+   - **Editar** (solo si eres admin) — lleva al formulario real en
+     `/plantillas/[id]/editar`.
+   La vista previa (y el Excel de ejemplo) los puede ver/descargar
+   cualquiera, es de solo lectura; editar sigue siendo solo para admin.
 
 5. `/medicos` — catálogo de médicos con su **código por ARS** (el código de
    un médico no es el mismo en todas las ARS — se confirmó al cargar la
