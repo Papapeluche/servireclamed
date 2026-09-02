@@ -42,15 +42,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
     });
   }
 
-  async function save(nextStatus) {
-    setSaving(true);
-    setMessage(null);
-
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+  function buildPayload(nextStatus, userId) {
     const payload = { ...values, ars_id: values.ars_id || null };
     for (const section of CLAIM_SECTIONS) {
       for (const field of section.fields) {
@@ -66,13 +58,25 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
     payload.status = nextStatus;
 
     if (nextStatus === "revisado") {
-      payload.verified_by = user?.id ?? null;
+      payload.verified_by = userId ?? null;
       payload.verified_at = new Date().toISOString();
     } else {
-      payload.digitized_by = user?.id ?? null;
+      payload.digitized_by = userId ?? null;
       payload.digitized_at = new Date().toISOString();
     }
+    return payload;
+  }
 
+  async function save(nextStatus) {
+    setSaving(true);
+    setMessage(null);
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const payload = buildPayload(nextStatus, user?.id);
     const { error } = await supabase.from("claims").update(payload).eq("id", claim.id);
 
     setSaving(false);
@@ -87,6 +91,57 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
     } else {
       setMessage({ type: "success", text: "Guardado." });
     }
+  }
+
+  async function saveAndDuplicate() {
+    setSaving(true);
+    setMessage(null);
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const payload = buildPayload("en_proceso", user?.id);
+    const { error: updateError } = await supabase
+      .from("claims")
+      .update(payload)
+      .eq("id", claim.id);
+
+    if (updateError) {
+      setSaving(false);
+      setMessage({ type: "error", text: updateError.message });
+      return;
+    }
+
+    // Nueva línea a partir de la misma imagen — para formularios con más de
+    // un procedimiento (ej. Humano, ARS-UASD), copiando lo que suele
+    // repetirse: ARS y datos del médico.
+    const { data: newClaim, error: insertError } = await supabase
+      .from("claims")
+      .insert({
+        image_path: claim.image_path,
+        status: "pendiente",
+        ars_id: values.ars_id || null,
+        doctor_nombre: values.doctor_nombre || null,
+        doctor_codigo: values.doctor_codigo || null,
+        doctor_cedula: values.doctor_cedula || null,
+        especialidad: values.especialidad || null,
+        centro_medico: values.centro_medico || null,
+        telefono_medico: values.telefono_medico || null,
+        digitized_by: user?.id ?? null,
+      })
+      .select("id")
+      .single();
+
+    setSaving(false);
+
+    if (insertError) {
+      setMessage({ type: "error", text: insertError.message });
+      return;
+    }
+
+    router.push(`/reclamaciones/${newClaim.id}`);
   }
 
   return (
@@ -155,7 +210,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => save("en_proceso")}
             disabled={saving}
@@ -169,6 +224,14 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             Marcar como revisado
+          </button>
+          <button
+            onClick={saveAndDuplicate}
+            disabled={saving}
+            title="Para formularios con más de un procedimiento/servicio en la misma hoja"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            + Otra línea de esta misma imagen
           </button>
         </div>
       </div>

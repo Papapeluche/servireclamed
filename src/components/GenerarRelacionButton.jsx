@@ -3,16 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function GenerarRelacionButton({ arsId, doctorNombre, doctorCodigo }) {
+export default function GenerarRelacionButton({ arsId, doctorNombre, doctorCodigo, templates }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [templateId, setTemplateId] = useState("");
 
   async function handleClick() {
     setLoading(true);
     const res = await fetch("/api/relaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ars_id: arsId, doctor_nombre: doctorNombre, doctor_codigo: doctorCodigo }),
+      body: JSON.stringify({
+        ars_id: arsId,
+        doctor_nombre: doctorNombre,
+        doctor_codigo: doctorCodigo,
+        template_id: templateId || null,
+      }),
     });
     setLoading(false);
 
@@ -25,12 +31,28 @@ export default function GenerarRelacionButton({ arsId, doctorNombre, doctorCodig
   }
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={loading}
-      className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-    >
-      {loading ? "Generando..." : "Generar relación"}
-    </button>
+    <div className="flex items-center gap-2">
+      {templates?.length > 0 && (
+        <select
+          value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+          className="rounded-lg border border-slate-300 px-2 py-2 text-xs"
+        >
+          <option value="">Formato genérico</option>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.nombre}
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+      >
+        {loading ? "Generando..." : "Generar relación"}
+      </button>
+    </div>
   );
 }

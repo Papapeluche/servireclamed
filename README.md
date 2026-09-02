@@ -57,10 +57,24 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    (igual que el formato real de Senasa: un bloque de encabezado del médico
    más una fila por reclamación), genera el lote (`relación`) y lo exporta a
    Excel listo para entregar o subir al portal de la ARS.
+4. `/plantillas` — en vez de que el formato de exportación esté escrito a
+   mano por ARS, el usuario arma su propia plantilla: qué campos van en el
+   encabezado (datos del médico/ARS, una vez por relación), qué columnas van
+   en la tabla (una por reclamación), con qué etiqueta y en qué orden. Al
+   generar una relación para esa ARS, se usa automáticamente esa plantilla;
+   si no existe, se exporta con un formato genérico razonable. El mismo
+   editor sirve para una futura **"hoja de presentación"** — un tipo de
+   plantilla aparte que se activa cuando el usuario comparta ese formato
+   real; por ahora solo queda guardada, sin exportación propia todavía.
+
+Un mismo formulario en papel a veces trae **más de un procedimiento** (visto
+en Humano y ARS-UASD) — desde `/reclamaciones/[id]` hay un botón "+ Otra
+línea de esta misma imagen" que crea una segunda reclamación reutilizando la
+misma foto, en vez de forzar a tomarla de nuevo.
 
 ## Campos reales (no genéricos) — basado en documentos que compartió el usuario
 
-Se revisaron formularios reales de **6 ARS distintas**:
+Se revisaron formularios reales de **9 ARS distintas**:
 
 - **ARS Amor y Paz** (red ASEMAP) — formulario individual en papel.
 - **ARS Senasa** — su formulario individual ("Formulario de Reclamaciones
@@ -74,6 +88,9 @@ Se revisaron formularios reales de **6 ARS distintas**:
   donde ver/gestionar la reclamación en línea, relevante para una futura
   integración de "subida directa".
 - **MAPFRE Salud ARS** — "Reclamación de Pago por Servicios Prestados".
+- **ARS Primera** — comprobante de autorización de su portal (WebSalud).
+- **ARS Universal** — "Formulario Reclamación Ambulatoria".
+- **Humano** — "Reclamación por Servicios Médicos".
 
 De ahí salió el catálogo de campos en `src/lib/claimFields.js`:
 
@@ -91,10 +108,9 @@ De ahí salió el catálogo de campos en `src/lib/claimFields.js`:
   (el campo núcleo `monto`) y **copago/diferencia a cargo del afiliado**.
 
 Cada ARS tiene su propio formulario y su propio formato de relación de
-salida — por ahora solo la exportación de Senasa está calcada exactamente
-(`src/app/api/relaciones/[id]/export/route.js`). Cuando se defina el formato
-de salida esperado por las otras 5 ARS, hay que sumar su propia plantilla de
-exportación (el catálogo de campos ya cubre lo que piden).
+salida. Ya no hace falta escribir una exportación distinta a mano por cada
+una: con `/plantillas`, el usuario define el formato exacto una vez por ARS
+y el sistema lo reutiliza (ver sección de Flujo arriba).
 
 **Importante:** los documentos que se compartieron para este análisis tenían
 datos reales de pacientes y médicos (nombres, cédulas, diagnósticos,
@@ -132,8 +148,13 @@ pública). Para crear el primer usuario:
 
 ## Pendientes / decisiones abiertas
 
-- [ ] Conseguir un formulario real en blanco (foto) y el formato real de
-      "relación" de al menos una ARS, para ajustar el modelo de datos.
+- [ ] Armar en `/plantillas` el formato real de relación de cada ARS que
+      falte (por ahora el catálogo de campos ya cubre las 9 ARS revisadas,
+      pero las plantillas hay que crearlas una vez por ARS desde la app).
+- [ ] La "hoja de presentación" — cuando el usuario comparta su formato
+      real, sumar la exportación específica para ese tipo de plantilla
+      (hoy `export_templates` ya soporta `tipo: hoja_presentacion`, pero
+      solo queda guardada, sin botón de descarga propio todavía).
 - [ ] Confirmar volumen de reclamaciones/día para decidir si la Fase 2/3 de
       IA algún día tiene sentido.
 - [ ] Decidir permisos por rol (¿un supervisor debe aprobar antes de

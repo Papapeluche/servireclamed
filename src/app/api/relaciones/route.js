@@ -11,16 +11,24 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { ars_id, doctor_nombre, doctor_codigo } = await request.json();
+  const { ars_id, doctor_nombre, doctor_codigo, template_id } = await request.json();
   if (!ars_id) {
     return NextResponse.json({ error: "Falta ars_id" }, { status: 400 });
   }
 
+  let totalField = "monto";
+  if (template_id) {
+    const { data: template } = await supabase
+      .from("export_templates")
+      .select("total_field")
+      .eq("id", template_id)
+      .single();
+    if (template?.total_field) totalField = template.total_field;
+  }
+
   let query = supabase
     .from("claims")
-    .select(
-      "id, monto, doctor_nombre, doctor_codigo, doctor_cedula, especialidad, centro_medico, telefono_medico"
-    )
+    .select("*")
     .eq("ars_id", ars_id)
     .eq("status", "revisado");
 
@@ -40,7 +48,7 @@ export async function POST(request) {
     );
   }
 
-  const totalMonto = claims.reduce((sum, c) => sum + Number(c.monto || 0), 0);
+  const totalMonto = claims.reduce((sum, c) => sum + Number(c[totalField] || 0), 0);
   const first = claims[0];
 
   const { data: relacion, error: relacionError } = await supabase
@@ -50,6 +58,7 @@ export async function POST(request) {
       total_monto: totalMonto,
       created_by: user.id,
       estado: "generada",
+      template_id: template_id || null,
       doctor_nombre: first.doctor_nombre,
       doctor_codigo: first.doctor_codigo,
       doctor_cedula: first.doctor_cedula,

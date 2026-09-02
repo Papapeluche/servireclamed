@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import GenerarRelacionButton from "@/components/GenerarRelacionButton";
 
@@ -39,6 +40,11 @@ export default async function RelacionesPage() {
     .select("id, fecha, estado, total_monto, doctor_nombre, ars_catalog(nombre)")
     .order("created_at", { ascending: false });
 
+  const { data: templates } = await supabase
+    .from("export_templates")
+    .select("id, nombre, ars_id")
+    .eq("tipo", "relacion");
+
   return (
     <div>
       <h1 className="mb-4 text-lg font-semibold text-slate-900">Relaciones</h1>
@@ -49,7 +55,12 @@ export default async function RelacionesPage() {
         </h2>
         <p className="mb-3 text-xs text-slate-400">
           Se agrupan por ARS + médico, igual que el formato de relación que ya
-          usan (encabezado del médico + una fila por reclamación).
+          usan (encabezado del médico + una fila por reclamación). Si una ARS
+          no tiene{" "}
+          <Link href="/plantillas" className="text-brand-600 hover:underline">
+            plantilla
+          </Link>{" "}
+          propia, se exporta con un formato genérico.
         </p>
         {pendingGroups.size === 0 ? (
           <p className="text-sm text-slate-400">
@@ -75,6 +86,9 @@ export default async function RelacionesPage() {
                   arsId={entry.arsId}
                   doctorNombre={entry.doctorNombre}
                   doctorCodigo={entry.doctorCodigo}
+                  templates={(templates || []).filter(
+                    (t) => !t.ars_id || t.ars_id === entry.arsId
+                  )}
                 />
               </div>
             ))}

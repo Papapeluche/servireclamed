@@ -22,6 +22,9 @@ export default async function AppLayout({ children }) {
             <Link href="/relaciones" className="hover:text-brand-600">
               Relaciones
             </Link>
+            <Link href="/plantillas" className="hover:text-brand-600">
+              Plantillas
+            </Link>
           </nav>
           <div className="flex items-center gap-3 text-sm text-slate-500">
             <span>{user?.email}</span>
