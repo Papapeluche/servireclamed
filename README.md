@@ -326,6 +326,24 @@ razonable pero no se pudieron afinar con una cámara real desde este
 entorno de desarrollo — es de esperar que necesiten un ajuste fino una vez
 se pruebe en el celular real (ver Pendientes).
 
+**Borrar fotos tomadas por error** — cada miniatura de la tira de capturas
+tiene un botón ✕ para borrarla (con confirmación). Esto borra tanto la fila
+de `claims` como el archivo en el bucket `reclamaciones-imagenes`, vía
+`DELETE /api/claims/[id]` (`src/app/api/claims/[id]/route.js`). Por RLS,
+cualquier usuario del staff puede borrar una reclamación mientras siga en
+`pendiente` o `en_proceso` (migración
+`claims_borrar_pendientes_cualquier_staff`) — una vez marcada `revisado`
+solo un admin puede borrarla (política preexistente), para que nadie borre
+por accidente algo ya validado y listo para la relación/hoja de
+presentación. La ruta usa el patrón `.select()` después del `.delete()`
+para detectar cuando RLS bloqueó el borrado (0 filas afectadas) y devolver
+un 403 claro en vez de un falso éxito.
+
+El mismo botón de descarte existe dentro de `ClaimEditor.jsx` ("Descartar
+esta reclamación", en rojo, solo visible mientras el estado siga en
+pendiente/en_proceso) — para el caso de que el error se note ya digitando,
+no solo justo después de capturar la foto.
+
 ## Volumen — lotes de 2 hasta 600+ reclamaciones por médico/ARS
 
 Todas las consultas que arman una relación o su exportación filtran por

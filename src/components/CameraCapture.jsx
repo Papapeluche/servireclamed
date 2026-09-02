@@ -179,6 +179,32 @@ export default function CameraCapture() {
     setCapturas((prev) => prev.map((c) => (c.localId === localId ? { ...c, ...patch } : c)));
   }
 
+  async function borrarCaptura(captura) {
+    if (!confirm("¿Borrar esta foto? No se puede deshacer.")) return;
+
+    if (!captura.claimId) {
+      // Nunca llegó a crearse la reclamación (falló la subida) — solo hay
+      // que quitarla de la lista local, no hay nada que borrar en el servidor.
+      setCapturas((prev) => prev.filter((c) => c.localId !== captura.localId));
+      return;
+    }
+
+    updateCaptura(captura.localId, { status: "borrando" });
+    try {
+      const res = await fetch(`/api/claims/${captura.claimId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "No se pudo borrar esta foto.");
+        updateCaptura(captura.localId, { status: "ok" });
+        return;
+      }
+      setCapturas((prev) => prev.filter((c) => c.localId !== captura.localId));
+    } catch {
+      alert("No se pudo borrar esta foto — revisa tu conexión.");
+      updateCaptura(captura.localId, { status: "ok" });
+    }
+  }
+
   async function uploadAndCreateClaim(localId, fileOrBlob) {
     const supabase = createClient();
 
@@ -321,7 +347,7 @@ export default function CameraCapture() {
           </p>
           <div className="flex flex-wrap gap-2">
             {capturas.map((c) => (
-              <CapturaThumb key={c.localId} captura={c} />
+              <CapturaThumb key={c.localId} captura={c} onDelete={borrarCaptura} />
             ))}
           </div>
           <p className="mt-2 text-[10px] text-slate-400">
@@ -341,14 +367,20 @@ const AI_BADGES = {
   no_disponible: { icon: "✍", className: "bg-slate-500" },
 };
 
-function CapturaThumb({ captura }) {
+function CapturaThumb({ captura, onDelete }) {
   const aiBadge = captura.status === "ok" ? AI_BADGES[captura.aiStatus] : null;
+  const puedeBorrar = captura.status === "ok" || captura.status === "error";
 
   const content = (
     <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={captura.thumb} alt="" className="h-full w-full object-cover" />
       {captura.status === "subiendo" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs text-white">
+          ...
+        </div>
+      )}
+      {captura.status === "borrando" && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs text-white">
           ...
         </div>
@@ -368,8 +400,27 @@ function CapturaThumb({ captura }) {
     </div>
   );
 
-  if (captura.status === "ok" && captura.claimId) {
-    return <Link href={`/reclamaciones/${captura.claimId}`}>{content}</Link>;
-  }
-  return content;
+  return (
+    <div className="relative">
+      {captura.status === "ok" && captura.claimId ? (
+        <Link href={`/reclamaciones/${captura.claimId}`}>{content}</Link>
+      ) : (
+        content
+      )}
+      {puedeBorrar && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(captura);
+          }}
+          title="Borrar esta foto"
+          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-xs text-white shadow hover:bg-red-600"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
 }

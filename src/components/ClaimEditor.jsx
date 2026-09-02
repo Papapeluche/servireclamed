@@ -45,6 +45,27 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
     [values]
   );
 
+  const puedeDescartar = claim.status === "pendiente" || claim.status === "en_proceso";
+
+  async function descartar() {
+    if (
+      !confirm(
+        "¿Descartar esta reclamación? Se borrará junto con su imagen y no se puede deshacer."
+      )
+    )
+      return;
+    setSaving(true);
+    setMessage(null);
+    const res = await fetch(`/api/claims/${claim.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setMessage({ type: "error", text: data.error || "No se pudo descartar." });
+      return;
+    }
+    router.push("/dashboard");
+  }
+
   function updateField(name, value) {
     setValues((v) => ({ ...v, [name]: value }));
   }
@@ -343,6 +364,16 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
           >
             + Otra línea de esta misma imagen
           </button>
+          {puedeDescartar && (
+            <button
+              onClick={descartar}
+              disabled={saving}
+              title="Para fotos tomadas por error, ilegibles, o que no eran una reclamación"
+              className="ml-auto rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+            >
+              Descartar esta reclamación
+            </button>
+          )}
         </div>
       </div>
     </div>
