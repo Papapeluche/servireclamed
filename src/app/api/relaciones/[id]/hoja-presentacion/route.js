@@ -186,10 +186,22 @@ export async function POST(request, { params }) {
   const doctorName = (relacion.doctor_nombre || "sin_medico").replace(/\s+/g, "_");
   const fileName = `hoja_presentacion_${arsName}_${doctorName}_${relacion.fecha}.xlsx`;
 
+  // Aviso (no bloqueante) de campos del encabezado que el formato pide pero
+  // que este médico/ARS tiene vacíos en el catálogo — es la factura fiscal,
+  // así que vale la pena que salte antes de mandarla a la ARS.
+  const missingFields = headerFields
+    .filter((hf) => !relacionValues[hf.field])
+    .map((hf) => hf.label || HEADER_FIELD_LABELS[hf.field] || hf.field);
+
+  const responseHeaders = {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="${fileName}"`,
+  };
+  if (missingFields.length) {
+    responseHeaders["X-Missing-Fields"] = encodeURIComponent(missingFields.join(", "));
+  }
+
   return new Response(buffer, {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${fileName}"`,
-    },
+    headers: responseHeaders,
   });
 }

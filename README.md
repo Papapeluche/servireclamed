@@ -351,6 +351,35 @@ que exista un admin:
    la app misma. Una vez que existe un admin, todo lo demás (crear más
    usuarios, subir/bajar roles) ya se hace desde `/configuracion/usuarios`.
 
+## Rigurosidad: agrupar por médico y avisar datos faltantes
+
+Dos preguntas reales del usuario sobre qué tan estricto es el sistema:
+
+**¿Se puede colar una reclamación de un médico en la relación de otro?**
+La agrupación en `/relaciones` (y la creación de la relación en
+`POST /api/relaciones`) ahora usa `doctor_id` — la FK real hacia el
+catálogo de médicos — en vez de comparar el texto de `doctor_nombre`. Antes
+un typo, un espacio de más, o una mayúscula distinta entre dos
+reclamaciones del **mismo** médico las separaba en dos grupos falsos (y en
+el otro sentido, dos médicos reales con el mismo nombre y sin código
+todavía sí se hubieran podido mezclar). Con `doctor_id`, mientras el médico
+ya esté en el catálogo (que es el caso normal, porque `ClaimEditor`
+autocompleta desde ahí), nunca se mezclan dos médicos distintos entre sí —
+solo se cae al texto cuando el médico ni siquiera está en el catálogo
+todavía, y ahí sigue sin mezclar médicos con `doctor_id` distinto, así ese
+no tenga ninguno.
+
+**¿Avisa si al médico o a la ARS le faltan datos que la plantilla pide?**
+Ahora sí. `GET`/`POST /api/relaciones/[id]/export` y
+`POST /api/relaciones/[id]/hoja-presentacion` revisan, de los campos del
+encabezado que se van a usar, cuáles vienen vacíos para ese médico/ARS
+específico (ej. falta el RNC, falta el teléfono, falta el código en esa
+ARS) y lo mandan en un header `X-Missing-Fields` junto con el archivo. No
+bloquea la descarga — a veces un campo vacío es legítimo — pero
+`RelacionExportPanel` y `HojaPresentacionPanel` muestran una alerta después
+de descargar, listando exactamente qué falta y dónde completarlo (la ficha
+del médico o de la ARS).
+
 ## Gobernanza de usuarios — roles y atribución
 
 Auditoría hecha antes de esta feature: **cualquier usuario autenticado

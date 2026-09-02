@@ -23,6 +23,7 @@ export default function RelacionGroupCard({ entry, relacionTemplates, hojaTempla
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ars_id: entry.arsId,
+        doctor_id: entry.doctorId || null,
         doctor_nombre: entry.doctorNombre,
         doctor_codigo: entry.doctorCodigo,
         template_id: templateId || null,

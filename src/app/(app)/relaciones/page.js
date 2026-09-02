@@ -16,18 +16,28 @@ export default async function RelacionesPage() {
   const { data: activeClaims } = await supabase
     .from("claims")
     .select(
-      "id, status, monto, ars_id, doctor_nombre, doctor_codigo, ars_catalog(id, nombre)"
+      "id, status, monto, ars_id, doctor_id, doctor_nombre, doctor_codigo, ars_catalog(id, nombre)"
     )
     .in("status", ["pendiente", "en_proceso", "revisado"]);
 
+  // Agrupar por doctor_id (la FK real) cuando existe, en vez de por el
+  // texto de doctor_nombre — un typo, un espacio de más o una mayúscula
+  // distinta entre dos reclamaciones del MISMO médico ya no las separa en
+  // dos grupos falsos. Si el médico todavía no está en el catálogo
+  // (doctor_id nulo), se cae al texto como antes — sigue siendo estricto
+  // porque nunca mezcla dos médicos con doctor_id distinto, solo agrupa por
+  // texto cuando de plano no hay con qué identificarlo mejor.
   const groups = new Map();
   for (const c of activeClaims || []) {
     if (!c.ars_id) continue;
-    const key = `${c.ars_id}::${c.doctor_nombre || ""}::${c.doctor_codigo || ""}`;
+    const key = c.doctor_id
+      ? `${c.ars_id}::id:${c.doctor_id}`
+      : `${c.ars_id}::texto:${c.doctor_nombre || ""}::${c.doctor_codigo || ""}`;
     if (!groups.has(key)) {
       groups.set(key, {
         arsId: c.ars_id,
         ars: c.ars_catalog,
+        doctorId: c.doctor_id,
         doctorNombre: c.doctor_nombre,
         doctorCodigo: c.doctor_codigo,
         pendiente: 0,
@@ -51,7 +61,9 @@ export default async function RelacionesPage() {
     .select("id, nombre, ars_id, header_fields, categorias")
     .eq("tipo", "hoja_presentacion");
 
-  // Para sugerir el próximo comprobante (NCF) disponible por médico.
+  // Para sugerir el próximo comprobante (NCF) disponible por médico. Se
+  // prefiere doctor_id (la FK real) sobre el nombre en texto — mismo
+  // criterio de rigurosidad que la agrupación de arriba.
   const { data: doctorsForMatch } = await supabase.from("doctors").select("id, nombre");
   const { data: comprobantesDisponibles } = await supabase
     .from("comprobantes")
@@ -59,19 +71,23 @@ export default async function RelacionesPage() {
     .eq("estado", "disponible")
     .order("created_at", { ascending: true });
 
-  function nextComprobanteFor(doctorNombre) {
-    if (!doctorNombre) return null;
-    const doctor = (doctorsForMatch || []).find(
-      (d) => d.nombre.trim().toLowerCase() === doctorNombre.trim().toLowerCase()
-    );
-    if (!doctor) return null;
-    return (comprobantesDisponibles || []).find((c) => c.doctor_id === doctor.id) || null;
+  function nextComprobanteFor(doctorId, doctorNombre) {
+    let id = doctorId;
+    if (!id) {
+      if (!doctorNombre) return null;
+      const doctor = (doctorsForMatch || []).find(
+        (d) => d.nombre.trim().toLowerCase() === doctorNombre.trim().toLowerCase()
+      );
+      id = doctor?.id;
+    }
+    if (!id) return null;
+    return (comprobantesDisponibles || []).find((c) => c.doctor_id === id) || null;
   }
 
   const { data: relaciones } = await supabase
     .from("relaciones")
     .select(
-      "id, fecha, estado, total_monto, doctor_nombre, doctor_codigo, doctor_cedula, ars_id, ars_catalog(nombre)"
+      "id, fecha, estado, total_monto, doctor_id, doctor_nombre, doctor_codigo, doctor_cedula, ars_id, ars_catalog(nombre)"
     )
     .order("created_at", { ascending: false });
 
@@ -80,10 +96,9 @@ export default async function RelacionesPage() {
   // presente en el historial y se manda como mapa plano.
   const comprobantesByDoctor = {};
   for (const r of relaciones || []) {
-    if (!r.doctor_nombre) continue;
-    const key = r.doctor_nombre.trim().toLowerCase();
-    if (key in comprobantesByDoctor) continue;
-    comprobantesByDoctor[key] = nextComprobanteFor(r.doctor_nombre);
+    const key = r.doctor_id || (r.doctor_nombre || "").trim().toLowerCase();
+    if (!key || key in comprobantesByDoctor) continue;
+    comprobantesByDoctor[key] = nextComprobanteFor(r.doctor_id, r.doctor_nombre);
   }
 
   return (
@@ -112,7 +127,7 @@ export default async function RelacionesPage() {
               hojaTemplates={(hojaTemplates || []).filter(
                 (t) => !t.ars_id || t.ars_id === entry.arsId
               )}
-              comprobante={nextComprobanteFor(entry.doctorNombre)}
+              comprobante={nextComprobanteFor(entry.doctorId, entry.doctorNombre)}
             />
           ))}
         </div>

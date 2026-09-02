@@ -123,17 +123,26 @@ async function buildWorkbook(supabase, id, overrides) {
   const doctorName = (relacion.doctor_nombre || "sin_medico").replace(/\s+/g, "_");
   const fileName = `relacion_${arsName}_${doctorName}_${relacion.fecha}.xlsx`;
 
-  return { buffer, fileName };
+  // Aviso (no bloqueante) de campos del encabezado que el formato pide pero
+  // que este médico/ARS tiene vacíos en el catálogo — para que se note
+  // antes de mandar el archivo, no después de que la ARS lo rechace.
+  const missingFields = headerFields
+    .filter((hf) => !relacionValues[hf.field])
+    .map((hf) => hf.label || HEADER_FIELD_LABELS[hf.field] || hf.field);
+
+  return { buffer, fileName, missingFields };
 }
 
 function respond(result) {
   if (result.error) return new Response(result.error, { status: result.status });
-  return new Response(result.buffer, {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${result.fileName}"`,
-    },
-  });
+  const headers = {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="${result.fileName}"`,
+  };
+  if (result.missingFields?.length) {
+    headers["X-Missing-Fields"] = encodeURIComponent(result.missingFields.join(", "));
+  }
+  return new Response(result.buffer, { headers });
 }
 
 export async function GET(request, { params }) {

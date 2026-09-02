@@ -23,9 +23,10 @@ export default function RelacionesHistorial({
     });
   }, [relaciones, q]);
 
-  function comprobanteFor(doctorNombre) {
-    if (!doctorNombre) return null;
-    return comprobantesByDoctor[doctorNombre.trim().toLowerCase()] || null;
+  function comprobanteFor(r) {
+    const key = r.doctor_id || (r.doctor_nombre || "").trim().toLowerCase();
+    if (!key) return null;
+    return comprobantesByDoctor[key] || null;
   }
 
   return (
@@ -76,7 +77,7 @@ export default function RelacionesHistorial({
                     templates={(hojaTemplates || []).filter(
                       (t) => !t.ars_id || t.ars_id === r.ars_id
                     )}
-                    comprobante={comprobanteFor(r.doctor_nombre)}
+                    comprobante={comprobanteFor(r)}
                   />
                 </td>
               </tr>

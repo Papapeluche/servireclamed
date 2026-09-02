@@ -63,6 +63,8 @@ export default function HojaPresentacionPanel({ relacionId, templates, comproban
       return;
     }
 
+    const missing = res.headers.get("X-Missing-Fields");
+
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -74,6 +76,13 @@ export default function HojaPresentacionPanel({ relacionId, templates, comproban
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+
+    if (missing) {
+      alert(
+        `Se descargó, pero al médico o la ARS le faltan estos datos que el formato pide: ${decodeURIComponent(missing)}. Complétalos en la ficha del médico o de la ARS.`
+      );
+    }
+
     onClose?.();
   }
 

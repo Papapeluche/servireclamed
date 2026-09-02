@@ -11,7 +11,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { ars_id, doctor_nombre, doctor_codigo, template_id } = await request.json();
+  const { ars_id, doctor_id, doctor_nombre, doctor_codigo, template_id } = await request.json();
   if (!ars_id) {
     return NextResponse.json({ error: "Falta ars_id" }, { status: 400 });
   }
@@ -32,8 +32,16 @@ export async function POST(request) {
     .eq("ars_id", ars_id)
     .eq("status", "revisado");
 
-  query = doctor_nombre ? query.eq("doctor_nombre", doctor_nombre) : query.is("doctor_nombre", null);
-  query = doctor_codigo ? query.eq("doctor_codigo", doctor_codigo) : query.is("doctor_codigo", null);
+  // Cuando el grupo ya identificó un médico del catálogo (doctor_id), se
+  // usa esa FK — es la que de verdad garantiza que no se mezclen dos
+  // médicos por una coincidencia de texto. Solo se cae al match por
+  // nombre/código cuando el médico no está en el catálogo todavía.
+  if (doctor_id) {
+    query = query.eq("doctor_id", doctor_id);
+  } else {
+    query = doctor_nombre ? query.eq("doctor_nombre", doctor_nombre) : query.is("doctor_nombre", null);
+    query = doctor_codigo ? query.eq("doctor_codigo", doctor_codigo) : query.is("doctor_codigo", null);
+  }
 
   const { data: claims, error: claimsError } = await query;
 
