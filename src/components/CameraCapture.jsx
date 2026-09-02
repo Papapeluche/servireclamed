@@ -4,14 +4,32 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+// Detección de "papel quieto" para disparar la captura sola — no lee el
+// contenido (eso lo hace la IA después), solo nota cuándo la cámara dejó
+// de moverse sobre algo que no es una superficie en blanco. 100% en el
+// navegador, sin costo, sin ninguna llamada externa.
+const DETECT_SIZE = 40; // downscale a 40x40 para que comparar cuadros sea barato
+const DETECT_INTERVAL_MS = 300;
+const STILL_DIFF_THRESHOLD = 8; // diferencia promedio por píxel (0-255) para considerarlo "quieto"
+const STILL_TICKS_NEEDED = 3; // ~900ms quieto antes de disparar
+const MIN_CONTENT_VARIANCE = 12; // evita disparar apuntando a una superficie lisa/en blanco
+const COOLDOWN_MS = 2000; // pausa después de cada auto-captura, para dar tiempo a cambiar de papel
+
 export default function CameraCapture() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const detectCanvasRef = useRef(null);
+  const prevFrameRef = useRef(null);
+  const stillTicksRef = useRef(0);
+  const cooldownRef = useRef(false);
+  const detectTimerRef = useRef(null);
 
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [flash, setFlash] = useState(false);
+  const [autoCapture, setAutoCapture] = useState(true);
+  const [autoStatus, setAutoStatus] = useState("esperando"); // esperando | quieto | pausa
   // Capturas de esta sesión, más reciente primero. No se navega a ningún
   // lado al tomar una foto — la cámara se queda encendida para poder ir
   // pasando papel tras papel sin esperar entre uno y otro.
@@ -22,6 +40,78 @@ export default function CameraCapture() {
     return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!cameraReady || !autoCapture) {
+      clearInterval(detectTimerRef.current);
+      prevFrameRef.current = null;
+      stillTicksRef.current = 0;
+      return;
+    }
+    detectTimerRef.current = setInterval(checkStillness, DETECT_INTERVAL_MS);
+    return () => clearInterval(detectTimerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraReady, autoCapture]);
+
+  function checkStillness() {
+    if (cooldownRef.current) return;
+
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return;
+
+    if (!detectCanvasRef.current) {
+      detectCanvasRef.current = document.createElement("canvas");
+      detectCanvasRef.current.width = DETECT_SIZE;
+      detectCanvasRef.current.height = DETECT_SIZE;
+    }
+    const ctx = detectCanvasRef.current.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, DETECT_SIZE, DETECT_SIZE);
+    const frame = ctx.getImageData(0, 0, DETECT_SIZE, DETECT_SIZE).data;
+
+    // Escala de grises por píxel, para comparar cuadros barato.
+    const gray = new Uint8ClampedArray(DETECT_SIZE * DETECT_SIZE);
+    for (let i = 0; i < gray.length; i++) {
+      const o = i * 4;
+      gray[i] = (frame[o] + frame[o + 1] + frame[o + 2]) / 3;
+    }
+
+    let variance = 0;
+    const mean = gray.reduce((a, b) => a + b, 0) / gray.length;
+    for (const g of gray) variance += (g - mean) ** 2;
+    variance /= gray.length;
+
+    const prev = prevFrameRef.current;
+    prevFrameRef.current = gray;
+
+    if (!prev || variance < MIN_CONTENT_VARIANCE) {
+      stillTicksRef.current = 0;
+      setAutoStatus("esperando");
+      return;
+    }
+
+    let diffSum = 0;
+    for (let i = 0; i < gray.length; i++) diffSum += Math.abs(gray[i] - prev[i]);
+    const avgDiff = diffSum / gray.length;
+
+    if (avgDiff < STILL_DIFF_THRESHOLD) {
+      stillTicksRef.current += 1;
+      setAutoStatus("quieto");
+    } else {
+      stillTicksRef.current = 0;
+      setAutoStatus("esperando");
+    }
+
+    if (stillTicksRef.current >= STILL_TICKS_NEEDED) {
+      stillTicksRef.current = 0;
+      cooldownRef.current = true;
+      setAutoStatus("pausa");
+      takePhoto();
+      setTimeout(() => {
+        cooldownRef.current = false;
+        setAutoStatus("esperando");
+      }, COOLDOWN_MS);
+    }
+  }
 
   async function startCamera() {
     try {
@@ -157,13 +247,31 @@ export default function CameraCapture() {
       </div>
 
       <p className="mb-3 text-xs text-slate-500">
-        La cámara se queda encendida — toma una foto, pasa a la siguiente
-        reclamación en papel, y toma la próxima cuando estés listo. No hace
-        falta esperar entre una y otra: cada foto se sube y se lee con IA
-        en segundo plano, sin bloquear la siguiente captura.
+        {autoCapture
+          ? "Captura automática activada: pon un papel frente a la cámara, sostenla quieta un momento y se toma la foto sola. Pasa al siguiente papel cuando quieras."
+          : "Captura manual: toma la foto tú mismo cuando estés listo."}{" "}
+        Cada foto se sube y se lee con IA en segundo plano, sin bloquear la
+        siguiente captura.
       </p>
 
-      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-black">
+      <label className="mb-3 flex items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={autoCapture}
+          onChange={(e) => setAutoCapture(e.target.checked)}
+        />
+        Captura automática (sin tocar el botón)
+      </label>
+
+      <div
+        className={`relative overflow-hidden rounded-xl border-4 bg-black transition-colors ${
+          autoCapture && autoStatus === "quieto"
+            ? "border-emerald-400"
+            : autoCapture && autoStatus === "pausa"
+              ? "border-brand-500"
+              : "border-slate-200"
+        }`}
+      >
         {!cameraError ? (
           <video ref={videoRef} autoPlay playsInline muted className="w-full" />
         ) : (
@@ -172,6 +280,13 @@ export default function CameraCapture() {
           </div>
         )}
         {flash && <div className="absolute inset-0 bg-white/80" />}
+        {autoCapture && cameraReady && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+            {autoStatus === "quieto" && "Quieta... capturando"}
+            {autoStatus === "pausa" && "📷 Capturada — cambia de papel"}
+            {autoStatus === "esperando" && "Buscando un papel quieto..."}
+          </div>
+        )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
 

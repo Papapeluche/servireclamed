@@ -261,6 +261,32 @@ directo a `/reclamaciones/[id]` para digitarla apenas se quiera. Antes cada
 foto forzaba a navegar a la pantalla de digitación de esa reclamación,
 rompiendo la posibilidad de escanear un lote completo de corrido.
 
+**Captura automática ("papel quieto")** — activada por defecto (con
+casilla para apagarla). No reconoce el contenido del papel — eso lo hace la
+IA después — solo detecta, con visión por computadora simple corriendo en
+el propio navegador (sin costo, sin llamar a ningún servicio externo), que
+la cámara dejó de moverse sobre algo que no es una superficie en blanco:
+
+1. Cada 300ms se compara un cuadro del video contra el anterior, reducido a
+   40×40 píxeles en escala de grises (barato de comparar).
+2. Si la diferencia promedio entre cuadros es baja durante ~3 lecturas
+   seguidas (~900ms quieto) **y** la imagen tiene suficiente variación de
+   contraste (para no disparar apuntando a una mesa o pared lisa), se toma
+   la foto sola.
+3. Después de cada auto-captura hay una pausa de 2 segundos antes de poder
+   volver a disparar, para dar tiempo a cambiar el papel sin que capture
+   dos veces el mismo.
+
+El borde del recuadro de la cámara cambia de color (gris → verde cuando
+detecta quietud → azul justo después de capturar) para que se entienda qué
+está pasando sin tener que mirar aparte. El botón "Tomar foto" sigue
+disponible siempre, por si se prefiere control manual en algún momento.
+Los umbrales (`STILL_DIFF_THRESHOLD`, `STILL_TICKS_NEEDED`,
+`MIN_CONTENT_VARIANCE` en el mismo archivo) son un punto de partida
+razonable pero no se pudieron afinar con una cámara real desde este
+entorno de desarrollo — es de esperar que necesiten un ajuste fino una vez
+se pruebe en el celular real (ver Pendientes).
+
 ## Volumen — lotes de 2 hasta 600+ reclamaciones por médico/ARS
 
 Todas las consultas que arman una relación o su exportación filtran por
@@ -540,6 +566,13 @@ separaron en columnas propias en `claims`. Ahora se ve en la práctica:
 
 ## Pendientes / decisiones abiertas
 
+- [ ] **Afinar los umbrales de la captura automática con una cámara real.**
+      Los valores en `CameraCapture.jsx` (qué tan quieto tiene que estar,
+      cuánto contraste mínimo, cuánto dura la pausa entre capturas) son un
+      punto de partida razonable pero no se probaron en un celular real
+      desde este entorno de desarrollo. Si dispara muy seguido (con solo
+      temblor de mano) o muy poco (exige demasiada quietud), son esos
+      números los que hay que subir/bajar.
 - [ ] **Probar la lectura con IA con una llave real de DashScope.** Se
       integró contra el endpoint "compatible mode" de DashScope (formato
       documentado, igual al de OpenAI) pero no se pudo probar en vivo desde
