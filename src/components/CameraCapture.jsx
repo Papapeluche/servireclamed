@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function CameraCapture() {
-  const router = useRouter();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState(null);
+  const [flash, setFlash] = useState(false);
+  // Capturas de esta sesión, más reciente primero. No se navega a ningún
+  // lado al tomar una foto — la cámara se queda encendida para poder ir
+  // pasando papel tras papel sin esperar entre uno y otro.
+  const [capturas, setCapturas] = useState([]);
 
   useEffect(() => {
     startCamera();
@@ -33,7 +35,7 @@ export default function CameraCapture() {
       setCameraReady(true);
     } catch (err) {
       setCameraError(
-        "No se pudo acceder a la cámara. Puedes subir la foto desde la galería."
+        "No se pudo acceder a la cámara. Puedes subir las fotos desde la galería."
       );
     }
   }
@@ -51,10 +53,15 @@ export default function CameraCapture() {
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
 
+    // Destello breve para confirmar que se tomó la foto, sin tapar la
+    // cámara ni obligar a esperar — se puede seguir capturando de una vez.
+    setFlash(true);
+    setTimeout(() => setFlash(false), 150);
+
     canvas.toBlob(
       (blob) => {
-        setPreview(URL.createObjectURL(blob));
-        uploadAndCreateClaim(blob);
+        const thumb = URL.createObjectURL(blob);
+        addCaptura(thumb, blob);
       },
       "image/jpeg",
       0.9
@@ -62,14 +69,20 @@ export default function CameraCapture() {
   }
 
   function handleFileInput(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPreview(URL.createObjectURL(file));
-    uploadAndCreateClaim(file);
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      addCaptura(URL.createObjectURL(file), file);
+    }
+    e.target.value = "";
   }
 
-  async function uploadAndCreateClaim(fileOrBlob) {
-    setUploading(true);
+  function addCaptura(thumb, fileOrBlob) {
+    const localId = crypto.randomUUID();
+    setCapturas((prev) => [{ localId, thumb, status: "subiendo", claimId: null }, ...prev]);
+    uploadAndCreateClaim(localId, fileOrBlob);
+  }
+
+  async function uploadAndCreateClaim(localId, fileOrBlob) {
     const supabase = createClient();
 
     const {
@@ -83,8 +96,7 @@ export default function CameraCapture() {
       .upload(fileName, fileOrBlob, { contentType: "image/jpeg" });
 
     if (uploadError) {
-      setUploading(false);
-      setCameraError(`No se pudo subir la imagen: ${uploadError.message}`);
+      setCapturas((prev) => prev.map((c) => (c.localId === localId ? { ...c, status: "error" } : c)));
       return;
     }
 
@@ -98,21 +110,33 @@ export default function CameraCapture() {
       .select("id")
       .single();
 
-    setUploading(false);
-
     if (insertError) {
-      setCameraError(`No se pudo crear la reclamación: ${insertError.message}`);
+      setCapturas((prev) => prev.map((c) => (c.localId === localId ? { ...c, status: "error" } : c)));
       return;
     }
 
-    router.push(`/reclamaciones/${claim.id}`);
+    setCapturas((prev) =>
+      prev.map((c) => (c.localId === localId ? { ...c, status: "ok", claimId: claim.id } : c))
+    );
   }
+
+  const guardadas = capturas.filter((c) => c.status === "ok").length;
+  const conError = capturas.filter((c) => c.status === "error").length;
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="mb-4 text-lg font-semibold text-slate-900">
-        Capturar reclamación
-      </h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-slate-900">Capturar reclamaciones</h1>
+        <Link href="/dashboard" className="text-xs text-brand-600 hover:underline">
+          Ir al dashboard
+        </Link>
+      </div>
+
+      <p className="mb-3 text-xs text-slate-500">
+        La cámara se queda encendida — toma una foto, pasa a la siguiente
+        reclamación en papel, y toma la próxima cuando estés listo. No hace
+        falta esperar entre una y otra.
+      </p>
 
       <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-black">
         {!cameraError ? (
@@ -122,6 +146,7 @@ export default function CameraCapture() {
             {cameraError}
           </div>
         )}
+        {flash && <div className="absolute inset-0 bg-white/80" />}
       </div>
       <canvas ref={canvasRef} className="hidden" />
 
@@ -129,31 +154,67 @@ export default function CameraCapture() {
         {cameraReady && (
           <button
             onClick={takePhoto}
-            disabled={uploading}
-            className="rounded-lg bg-brand-600 py-3 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            className="rounded-lg bg-brand-600 py-4 text-base font-medium text-white hover:bg-brand-700 active:bg-brand-700"
           >
-            {uploading ? "Subiendo..." : "📷 Tomar foto"}
+            📷 Tomar foto
           </button>
         )}
 
         <label className="cursor-pointer rounded-lg border border-slate-300 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50">
-          Subir foto desde galería
+          Subir fotos desde galería
           <input
             type="file"
             accept="image/*"
             capture="environment"
+            multiple
             onChange={handleFileInput}
             className="hidden"
-            disabled={uploading}
           />
         </label>
       </div>
 
-      {preview && uploading && (
-        <p className="mt-3 text-center text-xs text-slate-400">
-          Procesando imagen...
-        </p>
+      {capturas.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-xs text-slate-500">
+            {guardadas} guardada(s) en esta sesión
+            {conError > 0 && <span className="text-red-600"> · {conError} con error</span>}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {capturas.map((c) => (
+              <CapturaThumb key={c.localId} captura={c} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
+}
+
+function CapturaThumb({ captura }) {
+  const content = (
+    <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={captura.thumb} alt="" className="h-full w-full object-cover" />
+      {captura.status === "subiendo" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs text-white">
+          ...
+        </div>
+      )}
+      {captura.status === "ok" && (
+        <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-tl-lg bg-emerald-500 text-xs text-white">
+          ✓
+        </div>
+      )}
+      {captura.status === "error" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-600/70 text-xs text-white">
+          ✕
+        </div>
+      )}
+    </div>
+  );
+
+  if (captura.status === "ok" && captura.claimId) {
+    return <Link href={`/reclamaciones/${captura.claimId}`}>{content}</Link>;
+  }
+  return content;
 }

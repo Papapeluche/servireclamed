@@ -182,6 +182,17 @@ que apunta directo a esa pantalla. El dashboard también se auto-refresca
 cada 15 segundos (`src/components/AutoRefresh.jsx`) para que lo capturado
 desde el celular aparezca sin tener que recargar la página a mano.
 
+**Captura continua** (`src/components/CameraCapture.jsx`) — la cámara se
+queda encendida todo el tiempo, no se apaga ni se navega a otra pantalla
+después de cada foto. El flujo real es: apunta, toca "Tomar foto", pasa al
+siguiente papel, toca de nuevo — cada toque sube la imagen y crea la
+reclamación en segundo plano (con un destello + miniatura con ✓ cuando
+terminó, o ✕ si falló) sin bloquear la siguiente captura. Se ve un contador
+de "N guardadas en esta sesión" y una tira de miniaturas — cada una con link
+directo a `/reclamaciones/[id]` para digitarla apenas se quiera. Antes cada
+foto forzaba a navegar a la pantalla de digitación de esa reclamación,
+rompiendo la posibilidad de escanear un lote completo de corrido.
+
 ## Volumen — lotes de 2 hasta 600+ reclamaciones por médico/ARS
 
 Todas las consultas que arman una relación o su exportación filtran por
@@ -388,6 +399,16 @@ separaron en columnas propias en `claims`. Ahora se ve en la práctica:
 
 ## Pendientes / decisiones abiertas
 
+- [ ] Ver la cámara del celular **en tiempo real desde la PC** (tipo
+      videollamada/WebRTC) mientras se escanea — se evaluó y por ahora no se
+      construyó, es una función bastante más compleja que la captura
+      continua (que sí quedó lista). La captura continua ya resuelve el
+      caso de uso real: no hace falta ver la cámara desde la PC si el
+      celular sube cada foto casi al instante y el dashboard se
+      auto-refresca cada 15s.
+- [ ] Invitar/crear usuarios nuevos desde `/usuarios` (hoy sigue siendo
+      manual desde el dashboard de Supabase — lo que sí se puede hacer
+      desde la app es subir/bajar el rol de alguien que ya tiene cuenta).
 - [ ] Catálogo propio de **centros médicos** (tabla `centros_medicos`, con
       su propia dirección/teléfono, y `doctors.centro_medico_id` como FK en
       vez del texto libre actual). Hoy `/medicos` agrupa por el texto tal
