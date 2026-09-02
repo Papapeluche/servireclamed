@@ -118,6 +118,11 @@ export async function POST(request, { params }) {
     comprobante = existing;
   }
 
+  await supabase
+    .from("relaciones")
+    .update({ hoja_generada_at: new Date().toISOString() })
+    .eq("id", id);
+
   const relacionValues = {
     fecha: relacion.fecha,
     ars_nombre: relacion.ars_catalog?.nombre || "",

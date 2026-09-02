@@ -119,6 +119,29 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    relación es solo un listado de trabajo, la hoja de presentación es la
    factura real).
 
+8. `/medicos/[id]` — **mesa de trabajo del médico**: además de editar sus
+   datos y códigos por ARS (ahora en un panel plegable, para no perder de
+   vista el resto), la página tiene dos secciones:
+   - **Facturación por ARS**: se eligen chips por ARS (solo aparecen las que
+     tienen algo) y se ve el historial de relaciones de ese médico en esa
+     ARS — fecha, total, y si ya se generó la hoja de presentación o sigue
+     solo como relación — cada fila enlaza a `/relaciones/[id]`.
+   - **Comprobantes (NCF) usados**: lista de los NCF que ese médico ya
+     consumió, con la ARS y el monto a la vista; al hacer clic se despliega
+     en qué relación se usó y cuándo, con un enlace a "ver todos los datos
+     relacionados" (la ficha completa en `/relaciones/[id]`).
+   Esto requirió agregar `doctor_id` real (FK) tanto a `claims` como a
+   `relaciones` — antes solo se emparejaban por nombre/cédula, que puede
+   variar entre reclamaciones; ahora se resuelve una sola vez al digitar
+   (`ClaimEditor`) y se propaga a la relación al crearla. También se agregó
+   `relaciones.hoja_generada_at`, que se marca al generar la hoja de
+   presentación (con o sin NCF), para poder distinguir "relación armada" de
+   "ya facturada" en el historial.
+   - `/relaciones/[id]` — ficha de una relación puntual: datos del médico,
+     el NCF usado (si lo hay), las reclamaciones incluidas, y los mismos
+     botones de descarga que en `/relaciones` — pensada para llegar aquí
+     desde el historial general o desde la mesa de trabajo del médico.
+
 Un mismo formulario en papel a veces trae **más de un procedimiento** (visto
 en Humano y ARS-UASD) — desde `/reclamaciones/[id]` hay un botón "+ Otra
 línea de esta misma imagen" que crea una segunda reclamación reutilizando la

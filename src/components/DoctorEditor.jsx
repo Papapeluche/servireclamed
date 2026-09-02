@@ -47,7 +47,6 @@ export default function DoctorEditor({ doctor, arsOptions }) {
         setError(msg || "No se pudo guardar.");
         return;
       }
-      router.push("/medicos");
       router.refresh();
     } else {
       const res = await fetch("/api/doctors", {

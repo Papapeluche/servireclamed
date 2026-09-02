@@ -59,6 +59,7 @@ export async function POST(request) {
       created_by: user.id,
       estado: "generada",
       template_id: template_id || null,
+      doctor_id: first.doctor_id,
       doctor_nombre: first.doctor_nombre,
       doctor_codigo: first.doctor_codigo,
       doctor_cedula: first.doctor_cedula,

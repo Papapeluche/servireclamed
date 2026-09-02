@@ -123,7 +123,11 @@ export default async function RelacionesPage() {
             <tbody>
               {(relaciones || []).map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2">{r.ars_catalog?.nombre}</td>
+                  <td className="px-4 py-2">
+                    <Link href={`/relaciones/${r.id}`} className="text-brand-600 hover:underline">
+                      {r.ars_catalog?.nombre}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2">{r.doctor_nombre || "—"}</td>
                   <td className="px-4 py-2 text-slate-500">{r.fecha}</td>
                   <td className="px-4 py-2">RD$ {Number(r.total_monto).toFixed(2)}</td>

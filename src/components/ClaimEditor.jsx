@@ -70,8 +70,15 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [] 
     });
   }
 
+  function findDoctorByNombre(nombre) {
+    return doctors.find(
+      (d) => d.nombre.trim().toLowerCase() === String(nombre || "").trim().toLowerCase()
+    );
+  }
+
   function buildPayload(nextStatus, userId) {
     const payload = { ...values, ars_id: values.ars_id || null };
+    payload.doctor_id = findDoctorByNombre(values.doctor_nombre)?.id || null;
     for (const section of CLAIM_SECTIONS) {
       for (const field of section.fields) {
         const raw = values[field.name];
@@ -151,6 +158,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [] 
         image_path: claim.image_path,
         status: "pendiente",
         ars_id: values.ars_id || null,
+        doctor_id: findDoctorByNombre(values.doctor_nombre)?.id || null,
         doctor_nombre: values.doctor_nombre || null,
         doctor_codigo: values.doctor_codigo || null,
         doctor_cedula: values.doctor_cedula || null,
