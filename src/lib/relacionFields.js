@@ -3,12 +3,16 @@
 export const HEADER_FIELD_OPTIONS = [
   { field: "fecha", label: "Fecha" },
   { field: "ars_nombre", label: "ARS" },
+  { field: "ars_rnc", label: "RNC de la ARS" },
   { field: "doctor_nombre", label: "Médico" },
   { field: "doctor_cedula", label: "Cédula del médico" },
   { field: "doctor_codigo", label: "Código / exequátur" },
+  { field: "doctor_rnc", label: "RNC del médico (si factura por negocio, en vez de cédula)" },
   { field: "especialidad", label: "Especialidad" },
   { field: "centro_medico", label: "Centro médico" },
   { field: "telefono_medico", label: "Teléfono del médico" },
+  { field: "ncf", label: "NCF" },
+  { field: "ncf_vencimiento", label: "Fecha de vencimiento del NCF" },
 ];
 
 export const HEADER_FIELD_LABELS = Object.fromEntries(

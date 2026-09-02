@@ -11,7 +11,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { ars_id, doctor_nombre, doctor_codigo, template_id, comprobante_id } = await request.json();
+  const { ars_id, doctor_nombre, doctor_codigo, template_id } = await request.json();
   if (!ars_id) {
     return NextResponse.json({ error: "Falta ars_id" }, { status: 400 });
   }
@@ -62,6 +62,7 @@ export async function POST(request) {
       doctor_nombre: first.doctor_nombre,
       doctor_codigo: first.doctor_codigo,
       doctor_cedula: first.doctor_cedula,
+      doctor_rnc: first.doctor_rnc,
       especialidad: first.especialidad,
       centro_medico: first.centro_medico,
       telefono_medico: first.telefono_medico,
@@ -94,24 +95,6 @@ export async function POST(request) {
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
-  }
-
-  if (comprobante_id) {
-    const { error: comprobanteError } = await supabase
-      .from("comprobantes")
-      .update({
-        estado: "usado",
-        ars_id,
-        monto: totalMonto,
-        relacion_id: relacion.id,
-        used_at: new Date().toISOString(),
-      })
-      .eq("id", comprobante_id)
-      .eq("estado", "disponible");
-
-    if (comprobanteError) {
-      return NextResponse.json({ error: comprobanteError.message }, { status: 500 });
-    }
   }
 
   return NextResponse.json({ id: relacion.id });

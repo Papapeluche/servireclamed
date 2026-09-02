@@ -16,6 +16,21 @@
 // El bloque "núcleo" es el que aparece en casi todas. El resto es opcional
 // porque no todas las ARS lo piden — se agrega según aparece en más
 // formularios reales.
+export const TIPO_SERVICIO_OPTIONS = [
+  "Consulta",
+  "Consulta a especialista",
+  "Emergencia",
+  "Laboratorio",
+  "Rayos-X",
+  "Farmacia",
+  "Honorarios",
+  "Cirugía",
+  "Internamiento / Hospitalización",
+  "Ambulatorio",
+  "Servicios dentales",
+  "Otros",
+];
+
 export const CLAIM_SECTIONS = [
   {
     title: "Núcleo (obligatorio en toda ARS)",
@@ -29,20 +44,7 @@ export const CLAIM_SECTIONS = [
         name: "tipo_servicio",
         label: "Tipo de servicio",
         type: "select",
-        options: [
-          "Consulta",
-          "Consulta a especialista",
-          "Emergencia",
-          "Laboratorio",
-          "Rayos-X",
-          "Farmacia",
-          "Honorarios",
-          "Cirugía",
-          "Internamiento / Hospitalización",
-          "Ambulatorio",
-          "Servicios dentales",
-          "Otros",
-        ],
+        options: TIPO_SERVICIO_OPTIONS,
         required: true,
       },
       { name: "monto", label: "Monto autorizado / valor reclamado (RD$)", type: "number", required: true },
@@ -106,6 +108,7 @@ export const CLAIM_SECTIONS = [
       { name: "doctor_nombre", label: "Nombre del médico", type: "text" },
       { name: "doctor_codigo", label: "Código / exequátur / código PSS ante la ARS", type: "text" },
       { name: "doctor_cedula", label: "Cédula del médico", type: "text" },
+      { name: "doctor_rnc", label: "RNC del médico (si factura por negocio)", type: "text" },
       { name: "especialidad", label: "Especialidad", type: "text" },
       { name: "centro_medico", label: "Centro médico", type: "text" },
       { name: "telefono_medico", label: "Teléfono del médico", type: "text" },

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import GenerarRelacionButton from "@/components/GenerarRelacionButton";
+import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
 
 export const dynamic = "force-dynamic";
 
@@ -37,13 +38,18 @@ export default async function RelacionesPage() {
 
   const { data: relaciones } = await supabase
     .from("relaciones")
-    .select("id, fecha, estado, total_monto, doctor_nombre, ars_catalog(nombre)")
+    .select("id, fecha, estado, total_monto, doctor_nombre, ars_id, ars_catalog(nombre)")
     .order("created_at", { ascending: false });
 
   const { data: templates } = await supabase
     .from("export_templates")
     .select("id, nombre, ars_id")
     .eq("tipo", "relacion");
+
+  const { data: hojaTemplates } = await supabase
+    .from("export_templates")
+    .select("id, nombre, ars_id")
+    .eq("tipo", "hoja_presentacion");
 
   // Para sugerir el próximo comprobante disponible por médico (el nombre en
   // claims es texto libre, así que se resuelve por coincidencia de nombre).
@@ -107,7 +113,6 @@ export default async function RelacionesPage() {
                   templates={(templates || []).filter(
                     (t) => !t.ars_id || t.ars_id === entry.arsId
                   )}
-                  comprobante={nextComprobanteFor(entry.doctorNombre)}
                 />
               </div>
             ))}
@@ -127,6 +132,7 @@ export default async function RelacionesPage() {
                 <th className="px-4 py-2">Estado</th>
                 <th className="px-4 py-2">Total</th>
                 <th className="px-4 py-2"></th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -145,11 +151,20 @@ export default async function RelacionesPage() {
                       Descargar Excel
                     </a>
                   </td>
+                  <td className="px-4 py-2">
+                    <GenerarHojaPresentacionButton
+                      relacionId={r.id}
+                      templates={(hojaTemplates || []).filter(
+                        (t) => !t.ars_id || t.ars_id === r.ars_id
+                      )}
+                      comprobante={nextComprobanteFor(r.doctor_nombre)}
+                    />
+                  </td>
                 </tr>
               ))}
               {(!relaciones || relaciones.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                     Aún no se ha generado ninguna relación.
                   </td>
                 </tr>

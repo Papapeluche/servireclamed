@@ -9,6 +9,7 @@ export default function AsignarComprobantesForm({ doctors }) {
   const [prefijo, setPrefijo] = useState("");
   const [numeroInicial, setNumeroInicial] = useState("");
   const [cantidad, setCantidad] = useState("");
+  const [vencimiento, setVencimiento] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -25,6 +26,7 @@ export default function AsignarComprobantesForm({ doctors }) {
         prefijo,
         numero_inicial: numeroInicial,
         cantidad,
+        vencimiento: vencimiento || null,
       }),
     });
 
@@ -86,6 +88,17 @@ export default function AsignarComprobantesForm({ doctors }) {
           required
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
         />
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">
+            Vencimiento del NCF (opcional)
+          </label>
+          <input
+            value={vencimiento}
+            onChange={(e) => setVencimiento(e.target.value)}
+            type="date"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
         <button
           type="submit"
           disabled={saving || !doctorId}

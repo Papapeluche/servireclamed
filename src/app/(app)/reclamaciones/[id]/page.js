@@ -13,7 +13,7 @@ export default async function ReclamacionPage({ params }) {
     supabase.from("ars_catalog").select("id, nombre").eq("activo", true).order("nombre"),
     supabase
       .from("doctors")
-      .select("id, nombre, cedula, especialidad, centro_medico, doctor_ars_codigos(ars_id, codigo)"),
+      .select("id, nombre, cedula, rnc, especialidad, centro_medico, doctor_ars_codigos(ars_id, codigo)"),
   ]);
 
   if (error || !claim) notFound();

@@ -54,6 +54,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [] 
       ...v,
       doctor_nombre: match.nombre,
       doctor_cedula: match.cedula || v.doctor_cedula,
+      doctor_rnc: match.rnc || v.doctor_rnc,
       especialidad: match.especialidad || v.especialidad,
       centro_medico: match.centro_medico || v.centro_medico,
       doctor_codigo: codigoForArs ? codigoForArs.codigo : v.doctor_codigo,

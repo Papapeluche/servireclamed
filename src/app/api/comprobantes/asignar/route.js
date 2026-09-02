@@ -11,7 +11,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { doctor_id, prefijo, numero_inicial, cantidad } = await request.json();
+  const { doctor_id, prefijo, numero_inicial, cantidad, vencimiento } = await request.json();
 
   const cantidadNum = Number(cantidad);
   const inicialNum = Number(numero_inicial);
@@ -30,6 +30,7 @@ export async function POST(request) {
   const rows = Array.from({ length: cantidadNum }, (_, i) => ({
     doctor_id,
     numero: `${prefix}${inicialNum + i}`,
+    vencimiento: vencimiento || null,
     created_by: user.id,
   }));
 

@@ -9,6 +9,7 @@ export default function DoctorEditor({ doctor, arsOptions }) {
 
   const [nombre, setNombre] = useState(doctor?.nombre || "");
   const [cedula, setCedula] = useState(doctor?.cedula || "");
+  const [rnc, setRnc] = useState(doctor?.rnc || "");
   const [telefono, setTelefono] = useState(doctor?.telefono || "");
   const [especialidad, setEspecialidad] = useState(doctor?.especialidad || "");
   const [centroMedico, setCentroMedico] = useState(doctor?.centro_medico || "");
@@ -32,7 +33,7 @@ export default function DoctorEditor({ doctor, arsOptions }) {
     }
     setSaving(true);
 
-    const payload = { nombre, cedula, telefono, especialidad, centro_medico: centroMedico };
+    const payload = { nombre, cedula, rnc, telefono, especialidad, centro_medico: centroMedico };
 
     if (isEditing) {
       const res = await fetch(`/api/doctors/${doctor.id}`, {
@@ -127,6 +128,16 @@ export default function DoctorEditor({ doctor, arsOptions }) {
           <input
             value={cedula}
             onChange={(e) => setCedula(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            RNC (solo si factura por negocio/consultorio, no por cédula)
+          </label>
+          <input
+            value={rnc}
+            onChange={(e) => setRnc(e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
           />
         </div>

@@ -28,9 +28,18 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { nombre, tipo, ars_id, header_fields, table_columns, total_field } = body;
+  const { nombre, tipo, ars_id, header_fields, table_columns, total_field, categorias } = body;
 
-  if (!nombre || !table_columns?.length) {
+  if (!nombre) {
+    return NextResponse.json({ error: "Falta el nombre" }, { status: 400 });
+  }
+  if (tipo === "hoja_presentacion" && !categorias?.length) {
+    return NextResponse.json(
+      { error: "Falta al menos una categoría de facturación" },
+      { status: 400 }
+    );
+  }
+  if (tipo !== "hoja_presentacion" && !table_columns?.length) {
     return NextResponse.json(
       { error: "Falta el nombre o al menos una columna de tabla" },
       { status: 400 }
@@ -44,8 +53,9 @@ export async function POST(request) {
       tipo: tipo || "relacion",
       ars_id: ars_id || null,
       header_fields: header_fields || [],
-      table_columns,
+      table_columns: table_columns || [],
       total_field: total_field || "monto",
+      categorias: categorias || [],
       created_by: user.id,
     })
     .select("id")

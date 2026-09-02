@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ALL_FIELD_NAMES, FIELD_BY_NAME } from "@/lib/claimFields";
+import { ALL_FIELD_NAMES, FIELD_BY_NAME, TIPO_SERVICIO_OPTIONS } from "@/lib/claimFields";
 import { HEADER_FIELD_OPTIONS } from "@/lib/relacionFields";
 
 const TABLE_FIELD_OPTIONS = ALL_FIELD_NAMES.map((name) => ({
@@ -20,6 +20,7 @@ export default function TemplateEditor({ template, arsOptions }) {
   const [headerFields, setHeaderFields] = useState(template?.header_fields || []);
   const [tableColumns, setTableColumns] = useState(template?.table_columns || []);
   const [totalField, setTotalField] = useState(template?.total_field || "monto");
+  const [categorias, setCategorias] = useState(template?.categorias || []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -33,8 +34,12 @@ export default function TemplateEditor({ template, arsOptions }) {
       setError("Ponle un nombre a la plantilla.");
       return;
     }
-    if (tableColumns.length === 0) {
+    if (tipo === "relacion" && tableColumns.length === 0) {
       setError("Agrega al menos una columna de tabla.");
+      return;
+    }
+    if (tipo === "hoja_presentacion" && categorias.length === 0) {
+      setError("Agrega al menos una categoría de facturación.");
       return;
     }
 
@@ -46,6 +51,7 @@ export default function TemplateEditor({ template, arsOptions }) {
       header_fields: headerFields,
       table_columns: tableColumns,
       total_field: totalField,
+      categorias,
     };
 
     const res = await fetch(isEditing ? `/api/templates/${template.id}` : "/api/templates", {
@@ -117,45 +123,43 @@ export default function TemplateEditor({ template, arsOptions }) {
         </select>
       </div>
 
-      {tipo === "hoja_presentacion" && (
-        <p className="mb-4 rounded-lg bg-warn-100 px-3 py-2 text-sm text-warn-700">
-          La hoja de presentación se arma igual que la relación (encabezado +
-          columnas), pero la exportación con su formato exacto todavía no
-          está conectada — se activa cuando tengamos el modelo real.
-        </p>
-      )}
-
       <FieldListEditor
-        title="Campos del encabezado (una vez por relación — datos del médico/ARS)"
+        title="Campos del encabezado (una vez por documento — datos del médico/ARS)"
         options={HEADER_FIELD_OPTIONS}
         chosen={headerFields}
         onChange={setHeaderFields}
       />
 
-      <FieldListEditor
-        title="Columnas de la tabla (una fila por reclamación)"
-        options={TABLE_FIELD_OPTIONS}
-        chosen={tableColumns}
-        onChange={setTableColumns}
-      />
+      {tipo === "relacion" ? (
+        <>
+          <FieldListEditor
+            title="Columnas de la tabla (una fila por reclamación)"
+            options={TABLE_FIELD_OPTIONS}
+            chosen={tableColumns}
+            onChange={setTableColumns}
+          />
 
-      {numericTableFields.length > 0 && (
-        <div className="mb-6">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Campo a sumar en la fila de total
-          </label>
-          <select
-            value={totalField}
-            onChange={(e) => setTotalField(e.target.value)}
-            className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
-            {numericTableFields.map((f) => (
-              <option key={f.field} value={f.field}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </div>
+          {numericTableFields.length > 0 && (
+            <div className="mb-6">
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Campo a sumar en la fila de total
+              </label>
+              <select
+                value={totalField}
+                onChange={(e) => setTotalField(e.target.value)}
+                className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                {numericTableFields.map((f) => (
+                  <option key={f.field} value={f.field}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </>
+      ) : (
+        <CategoriasEditor categorias={categorias} onChange={setCategorias} />
       )}
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -279,6 +283,126 @@ function FieldListEditor({ title, options, chosen, onChange }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function CategoriasEditor({ categorias, onChange }) {
+  function addCategoria() {
+    onChange([...categorias, { label: "", tipos: [] }]);
+  }
+
+  function removeCategoria(idx) {
+    onChange(categorias.filter((_, i) => i !== idx));
+  }
+
+  function moveCategoria(idx, direction) {
+    const next = [...categorias];
+    const target = idx + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onChange(next);
+  }
+
+  function updateLabel(idx, label) {
+    onChange(categorias.map((c, i) => (i === idx ? { ...c, label } : c)));
+  }
+
+  function toggleTipo(idx, tipo) {
+    onChange(
+      categorias.map((c, i) => {
+        if (i !== idx) return c;
+        const tipos = c.tipos.includes(tipo)
+          ? c.tipos.filter((t) => t !== tipo)
+          : [...c.tipos, tipo];
+        return { ...c, tipos };
+      })
+    );
+  }
+
+  return (
+    <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+      <h3 className="mb-1 text-sm font-semibold text-slate-800">
+        Categorías de facturación (una fila por categoría, sumando el monto de
+        las reclamaciones cuyo tipo de servicio caiga en cada una)
+      </h3>
+      <p className="mb-3 text-xs text-slate-400">
+        Ej. en la factura de ARS CMD: "Consultas", "Procedimientos
+        ambulatorios (prueba y estudios)", "Honorarios / Emergencias",
+        "Honorarios méd. / hospitalización".
+      </p>
+
+      {categorias.length === 0 && (
+        <p className="mb-3 text-sm text-slate-400">Todavía no has agregado categorías.</p>
+      )}
+
+      <div className="mb-3 flex flex-col gap-3">
+        {categorias.map((cat, idx) => (
+          <div key={idx} className="rounded-lg bg-slate-50 p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => moveCategoria(idx, -1)}
+                  disabled={idx === 0}
+                  className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveCategoria(idx, 1)}
+                  disabled={idx === categorias.length - 1}
+                  className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                >
+                  ▼
+                </button>
+              </div>
+              <input
+                value={cat.label}
+                onChange={(e) => updateLabel(idx, e.target.value)}
+                placeholder="Nombre de la categoría (ej. Consultas)"
+                className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => removeCategoria(idx)}
+                className="text-sm text-red-500 hover:text-red-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {TIPO_SERVICIO_OPTIONS.map((tipo) => (
+                <label
+                  key={tipo}
+                  className={`cursor-pointer rounded-full border px-2 py-1 text-xs ${
+                    cat.tipos.includes(tipo)
+                      ? "border-brand-600 bg-brand-50 text-brand-700"
+                      : "border-slate-300 text-slate-500"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={cat.tipos.includes(tipo)}
+                    onChange={() => toggleTipo(idx, tipo)}
+                    className="hidden"
+                  />
+                  {tipo}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addCategoria}
+        className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+      >
+        + Agregar categoría
+      </button>
     </div>
   );
 }

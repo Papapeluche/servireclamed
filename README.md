@@ -65,17 +65,39 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    por relación), qué columnas van en la tabla (una por reclamación), con
    qué etiqueta y en qué orden. Esa plantilla genérica se usa para cualquier
    ARS que no tenga una propia; solo hace falta crear una específica si de
-   verdad alguna ARS pide un formato de entrega distinto. El mismo editor
-   sirve para una futura **"hoja de presentación"** — un tipo de plantilla
-   aparte que se activa cuando el usuario comparta ese formato real; por
-   ahora solo queda guardada, sin exportación propia todavía.
+   verdad alguna ARS pide un formato de entrega distinto.
 
 5. `/medicos` — catálogo de médicos con su **código por ARS** (el código de
    un médico no es el mismo en todas las ARS — se confirmó al cargar la
    primera lista real, de CMD). Al digitar una reclamación, si el médico ya
    está en el catálogo, sus datos (código para esa ARS, cédula,
    especialidad, centro) se auto-completan en vez de tener que escribirlos
-   a mano cada vez — menos digitación, menos error.
+   a mano cada vez — menos digitación, menos error. Desde `/medicos/nuevo`
+   y `/medicos/[id]` se pueden crear y editar médicos (y sus códigos por
+   ARS) directamente desde la app.
+
+6. **Hoja de presentación** — a diferencia de la relación (que es igual
+   para todas las ARS), esta sí varía por ARS: es la factura fiscal que se
+   arma *después* de tener la relación lista, agrupando las reclamaciones
+   en categorías de facturación (ej. Consultas, Procedimientos
+   ambulatorios, Honorarios/Emergencias) en vez de una fila por
+   reclamación. Se genera desde el historial de `/relaciones` (botón
+   "Hoja de presentación"), usando una plantilla `tipo: hoja_presentacion`
+   creada en `/plantillas` — ahí se definen las categorías y qué tipos de
+   servicio caen en cada una. Ya existe una plantilla real para **ARS CMD**
+   (`Hoja de presentación CMD`), calcada de una factura real que compartió
+   el usuario.
+
+7. `/comprobantes` — cada médico tiene un rango limitado de **NCF**
+   (Número de Comprobante Fiscal, el número de factura exigido por la
+   DGII). Se le asigna un rango (prefijo + número inicial + cantidad +
+   fecha de vencimiento) una sola vez; al generar la hoja de presentación
+   de una relación se puede vincular el próximo NCF disponible de ese
+   médico — queda registrado a qué ARS se usó, por qué monto, y con link a
+   la relación, para poder consultarlo después. El NCF se consume al
+   generar la **hoja de presentación**, no al generar la relación (la
+   relación es solo un listado de trabajo, la hoja de presentación es la
+   factura real).
 
 Un mismo formulario en papel a veces trae **más de un procedimiento** (visto
 en Humano y ARS-UASD) — desde `/reclamaciones/[id]` hay un botón "+ Otra
@@ -203,10 +225,15 @@ pública). Para crear el primer usuario:
       catálogo de campos ya cubre las 9 ARS revisadas). Solo hace falta una
       plantilla específica por ARS si alguna de verdad pide un formato de
       entrega distinto al estándar.
-- [ ] La "hoja de presentación" — cuando el usuario comparta su formato
-      real, sumar la exportación específica para ese tipo de plantilla
-      (hoy `export_templates` ya soporta `tipo: hoja_presentacion`, pero
-      solo queda guardada, sin botón de descarga propio todavía).
+- [ ] Crear en `/plantillas` la hoja de presentación de las demás ARS con
+      las que trabajan (solo existe la de CMD por ahora, calcada de una
+      factura real).
+- [ ] Confirmar si el RNC que aparece en una hoja de presentación es
+      siempre de la ARS o a veces del médico/consultorio — según el
+      usuario, algunos médicos facturan con su propio RNC de negocio en
+      vez de cédula. El modelo ya soporta ambos (`ars_catalog.rnc` y
+      `doctors.rnc`), solo falta confirmar caso por caso cuál usar en cada
+      plantilla.
 - [ ] Confirmar volumen de reclamaciones/día para decidir si la Fase 2/3 de
       IA algún día tiene sentido.
 - [ ] Decidir permisos por rol (¿un supervisor debe aprobar antes de

@@ -23,7 +23,7 @@ export default async function ComprobantesPage() {
     supabase.from("doctors").select("id, nombre").order("nombre"),
     supabase
       .from("comprobantes")
-      .select("id, numero, estado, monto, used_at, created_at, doctors(nombre), ars_catalog(nombre), relaciones(id)")
+      .select("id, numero, estado, monto, vencimiento, used_at, created_at, doctors(nombre), ars_catalog(nombre), relaciones(id)")
       .order("created_at", { ascending: false })
       .limit(500),
   ]);
@@ -35,9 +35,10 @@ export default async function ComprobantesPage() {
     <div>
       <h1 className="mb-1 text-lg font-semibold text-slate-900">Comprobantes</h1>
       <p className="mb-4 text-sm text-slate-500">
-        Cada médico tiene un número limitado de comprobantes. Al generar una
-        relación se puede vincular uno — queda registrado a qué ARS se usó,
-        por qué monto, y con un link a la relación, para consultas futuras.
+        Cada médico tiene un número limitado de comprobantes (NCF). Al generar
+        la <strong>hoja de presentación</strong> de una relación se puede
+        vincular uno — queda registrado a qué ARS se usó, por qué monto, y
+        con un link a la relación, para consultas futuras.
       </p>
 
       <div className="mb-6 grid grid-cols-3 gap-3 max-w-md">
@@ -57,6 +58,7 @@ export default async function ComprobantesPage() {
             <tr>
               <th className="px-4 py-2">Número</th>
               <th className="px-4 py-2">Médico</th>
+              <th className="px-4 py-2">Vence</th>
               <th className="px-4 py-2">Estado</th>
               <th className="px-4 py-2">ARS usado</th>
               <th className="px-4 py-2">Monto</th>
@@ -69,6 +71,7 @@ export default async function ComprobantesPage() {
               <tr key={c.id} className="border-t border-slate-100">
                 <td className="px-4 py-2 font-mono text-xs">{c.numero}</td>
                 <td className="px-4 py-2">{c.doctors?.nombre || "—"}</td>
+                <td className="px-4 py-2 text-slate-500">{c.vencimiento || "—"}</td>
                 <td className="px-4 py-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ESTADO_STYLES[c.estado]}`}>
                     {ESTADO_LABELS[c.estado]}
@@ -96,7 +99,7 @@ export default async function ComprobantesPage() {
             ))}
             {(!comprobantes || comprobantes.length === 0) && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   Aún no hay comprobantes asignados.
                 </td>
               </tr>

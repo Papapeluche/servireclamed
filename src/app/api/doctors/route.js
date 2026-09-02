@@ -11,7 +11,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { nombre, cedula, telefono, especialidad, centro_medico, codigos } = await request.json();
+  const { nombre, cedula, rnc, telefono, especialidad, centro_medico, codigos } = await request.json();
 
   if (!nombre?.trim()) {
     return NextResponse.json({ error: "Falta el nombre del médico" }, { status: 400 });
@@ -22,6 +22,7 @@ export async function POST(request) {
     .insert({
       nombre: nombre.trim(),
       cedula: cedula?.trim() || null,
+      rnc: rnc?.trim() || null,
       telefono: telefono?.trim() || null,
       especialidad: especialidad?.trim() || null,
       centro_medico: centro_medico?.trim() || null,

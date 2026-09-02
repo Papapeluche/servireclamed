@@ -6,7 +6,7 @@ export async function PATCH(request, { params }) {
   const supabase = await createClient();
   const body = await request.json();
 
-  const allowed = ["nombre", "cedula", "telefono", "especialidad", "centro_medico"];
+  const allowed = ["nombre", "cedula", "rnc", "telefono", "especialidad", "centro_medico"];
   const payload = {};
   for (const key of allowed) {
     if (key in body) payload[key] = body[key]?.trim ? body[key].trim() || null : body[key];

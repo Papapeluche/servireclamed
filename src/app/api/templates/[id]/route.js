@@ -6,7 +6,15 @@ export async function PATCH(request, { params }) {
   const supabase = await createClient();
   const body = await request.json();
 
-  const allowed = ["nombre", "tipo", "ars_id", "header_fields", "table_columns", "total_field"];
+  const allowed = [
+    "nombre",
+    "tipo",
+    "ars_id",
+    "header_fields",
+    "table_columns",
+    "total_field",
+    "categorias",
+  ];
   const payload = {};
   for (const key of allowed) {
     if (key in body) payload[key] = body[key];
