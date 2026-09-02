@@ -328,8 +328,63 @@ pública). Para crear el primer usuario:
    Add user** (con email + password).
 2. Ese usuario ya puede entrar en `/login`. Se le crea automáticamente su
    fila en `profiles` con rol `digitador`.
-3. Para hacerlo `admin` o `supervisor`, actualiza la columna `role` en la
-   tabla `profiles` desde el dashboard.
+3. Para subirle el rol a `admin` o `supervisor`, un admin ya existente lo
+   hace desde `/usuarios` en la app (ver siguiente sección) — ya no hace
+   falta tocar la base de datos a mano para esto.
+
+## Gobernanza de usuarios — roles y atribución
+
+Auditoría hecha antes de esta feature: **cualquier usuario autenticado
+podía hacer cualquier cosa**. La columna `profiles.role` existía (con
+`digitador` por defecto) pero nada la usaba — ni RLS en la base de datos ni
+la app — así que un digitador podía borrar médicos, anular comprobantes,
+editar formatos, o incluso actualizar su propia fila en `profiles` para
+ponerse `role = 'admin'` (falla real de seguridad, ya cerrada). Con esto en
+mente se construyó gobernanza real:
+
+**Tres roles:**
+- **admin** — todo, incluyendo gestionar usuarios/roles, borrar médicos,
+  crear/editar/borrar formatos (`export_templates`, `ars_catalog`).
+- **supervisor** — puede asignar rangos de NCF nuevos y anular comprobantes,
+  pero no borra médicos ni toca formatos.
+- **digitador** — el trabajo diario: capturar, digitar, generar relaciones y
+  hojas de presentación. No puede hacer cambios estructurales ni de otros
+  usuarios.
+
+**Dónde vive el control (capas, no solo la UI):**
+- **RLS en Postgres** — la autoridad real. `doctors` separa DELETE (solo
+  admin) del resto; `export_templates` y `ars_catalog` solo dejan
+  crear/editar/borrar a admin (lectura sigue abierta a todos); `comprobantes`
+  deja el UPDATE abierto (así el flujo normal de "marcar NCF como usado" al
+  generar una hoja de presentación sigue funcionando para cualquiera) pero
+  el INSERT (asignar un rango) requiere admin/supervisor.
+- **Triggers** para las transiciones que RLS no puede distinguir por sí
+  sola: anular un comprobante específicamente (no cualquier UPDATE) requiere
+  admin/supervisor; cambiar la columna `role` de cualquier fila de
+  `profiles` (la propia o la de otro) requiere ya ser admin — así se cerró
+  el hueco de auto-escalación.
+- **UI** — los botones/enlaces que la base de datos igual bloquearía se
+  ocultan para quien no tiene el rol (menos confuso que dejarlos y que
+  fallen). Las rutas API que hacen UPDATE/DELETE ahora piden la fila de
+  vuelta (`.select()`) para poder avisar "no tienes permiso" en vez de
+  fingir que sí se guardó cuando RLS calladamente no afectó ninguna fila
+  (bug real que existía en `/api/doctors/[id]` DELETE y `/api/templates/[id]`).
+
+**`/usuarios`** (solo admin) — lista de todos los usuarios con su rol, y un
+selector para cambiarlo ahí mismo. Todavía no hay forma de invitar/crear
+cuentas desde la app (sigue siendo por el dashboard de Supabase), pero
+subir/bajar el rol de alguien ya no requiere tocar la base de datos.
+
+**Atribución — "quién hizo qué":** antes `captured_by` no existía y
+`digitized_by` se pisaba (el que tomaba la foto y el que la transcribía
+podían ser personas distintas, y solo quedaba registrado el último). Se
+separaron en columnas propias en `claims`. Ahora se ve en la práctica:
+- Reclamación (`/reclamaciones/[id]`): capturada por / digitada por /
+  revisada por.
+- Dashboard: columna "Por" con quién la digitó (o la capturó, si aún nadie
+  la ha digitado).
+- Relación (`/relaciones/[id]`): "Creada por" junto a la fecha y el total.
+- Comprobantes (`/comprobantes`): columna "Asignado por".
 
 ## Pendientes / decisiones abiertas
 

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AsignarComprobantesForm from "@/components/AsignarComprobantesForm";
 import ComprobantesTable from "@/components/ComprobantesTable";
+import { getCurrentProfile, isSupervisorOrAdmin, getProfilesMap } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,14 +13,19 @@ const ESTADO_LABELS = {
 
 export default async function ComprobantesPage() {
   const supabase = await createClient();
+  const me = await getCurrentProfile(supabase);
+  const canManage = isSupervisorOrAdmin(me);
 
-  const [{ data: doctors }, { data: comprobantes }] = await Promise.all([
+  const [{ data: doctors }, { data: comprobantes }, profilesMap] = await Promise.all([
     supabase.from("doctors").select("id, nombre").order("nombre"),
     supabase
       .from("comprobantes")
-      .select("id, numero, estado, monto, vencimiento, used_at, created_at, doctors(nombre), ars_catalog(nombre), relaciones(id)")
+      .select(
+        "id, numero, estado, monto, vencimiento, used_at, created_at, created_by, doctors(nombre), ars_catalog(nombre), relaciones(id)"
+      )
       .order("created_at", { ascending: false })
       .limit(500),
+    getProfilesMap(supabase),
   ]);
 
   const summary = { disponible: 0, usado: 0, anulado: 0 };
@@ -44,9 +50,19 @@ export default async function ComprobantesPage() {
         ))}
       </div>
 
-      <AsignarComprobantesForm doctors={doctors || []} />
+      {canManage ? (
+        <AsignarComprobantesForm doctors={doctors || []} />
+      ) : (
+        <p className="mb-6 text-xs text-slate-400">
+          Solo un admin o supervisor puede asignar rangos de comprobantes nuevos.
+        </p>
+      )}
 
-      <ComprobantesTable comprobantes={comprobantes || []} />
+      <ComprobantesTable
+        comprobantes={comprobantes || []}
+        profilesMap={profilesMap}
+        canManage={canManage}
+      />
     </div>
   );
 }

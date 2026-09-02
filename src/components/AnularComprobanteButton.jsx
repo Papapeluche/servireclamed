@@ -7,7 +7,12 @@ export default function AnularComprobanteButton({ id }) {
 
   async function handleClick() {
     if (!confirm("¿Anular este comprobante? Ya no se podrá usar.")) return;
-    await fetch(`/api/comprobantes/${id}/anular`, { method: "POST" });
+    const res = await fetch(`/api/comprobantes/${id}/anular`, { method: "POST" });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      alert(error || "No se pudo anular el comprobante.");
+      return;
+    }
     router.refresh();
   }
 

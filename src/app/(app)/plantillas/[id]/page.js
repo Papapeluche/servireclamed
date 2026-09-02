@@ -1,13 +1,16 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TemplateEditor from "@/components/TemplateEditor";
 import BackLink from "@/components/BackLink";
+import { getCurrentProfile, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditarPlantillaPage({ params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const me = await getCurrentProfile(supabase);
+  if (!isAdmin(me)) redirect("/plantillas");
 
   const [{ data: template, error }, { data: arsOptions }] = await Promise.all([
     supabase.from("export_templates").select("*").eq("id", id).single(),

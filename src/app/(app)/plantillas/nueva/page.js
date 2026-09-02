@@ -1,9 +1,14 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TemplateEditor from "@/components/TemplateEditor";
 import BackLink from "@/components/BackLink";
+import { getCurrentProfile, isAdmin } from "@/lib/auth";
 
 export default async function NuevaPlantillaPage() {
   const supabase = await createClient();
+  const me = await getCurrentProfile(supabase);
+  if (!isAdmin(me)) redirect("/plantillas");
+
   const { data: arsOptions } = await supabase
     .from("ars_catalog")
     .select("id, nombre")

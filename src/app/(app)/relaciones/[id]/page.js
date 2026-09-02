@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import DescargarPlantillaButton from "@/components/DescargarPlantillaButton";
 import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
 import BackLink from "@/components/BackLink";
+import { getProfilesMap } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +15,14 @@ export default async function RelacionDetallePage({ params }) {
   const { data: relacion, error } = await supabase
     .from("relaciones")
     .select(
-      "id, fecha, estado, total_monto, doctor_id, doctor_nombre, doctor_cedula, doctor_rnc, doctor_codigo, especialidad, centro_medico, telefono_medico, ars_id, hoja_generada_at, ars_catalog(id, nombre, rnc)"
+      "id, fecha, estado, total_monto, doctor_id, doctor_nombre, doctor_cedula, doctor_rnc, doctor_codigo, especialidad, centro_medico, telefono_medico, ars_id, hoja_generada_at, created_by, ars_catalog(id, nombre, rnc)"
     )
     .eq("id", id)
     .single();
 
   if (error || !relacion) notFound();
 
-  const [{ data: rows }, { data: comprobante }, { data: relacionTemplates }, { data: hojaTemplates }] =
+  const [{ data: rows }, { data: comprobante }, { data: relacionTemplates }, { data: hojaTemplates }, profilesMap] =
     await Promise.all([
       supabase
         .from("relacion_claims")
@@ -41,6 +42,7 @@ export default async function RelacionDetallePage({ params }) {
         .from("export_templates")
         .select("id, nombre, ars_id, header_fields, categorias")
         .eq("tipo", "hoja_presentacion"),
+      getProfilesMap(supabase),
     ]);
 
   const claims = (rows || []).map((r) => r.claims).filter(Boolean);
@@ -54,6 +56,9 @@ export default async function RelacionDetallePage({ params }) {
       <p className="mb-6 text-sm text-slate-500">
         {relacion.fecha} · {claims.length} reclamación(es) · Total RD${" "}
         {Number(relacion.total_monto).toFixed(2)}
+        {relacion.created_by && (
+          <> · Creada por {profilesMap[relacion.created_by] || "—"}</>
+        )}
       </p>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">

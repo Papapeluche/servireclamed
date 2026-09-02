@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DoctorEditor({ doctor, arsOptions, hideCodigos = false }) {
+export default function DoctorEditor({ doctor, arsOptions, hideCodigos = false, canDelete = true }) {
   const router = useRouter();
   const isEditing = Boolean(doctor?.id);
 
@@ -67,7 +67,12 @@ export default function DoctorEditor({ doctor, arsOptions, hideCodigos = false }
 
   async function handleDelete() {
     if (!confirm(`¿Eliminar a ${doctor.nombre} del catálogo? Esto no borra sus reclamaciones ya digitadas.`)) return;
-    await fetch(`/api/doctors/${doctor.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/doctors/${doctor.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({}));
+      setError(msg || "No se pudo eliminar el médico.");
+      return;
+    }
     router.push("/medicos");
     router.refresh();
   }
@@ -233,7 +238,7 @@ export default function DoctorEditor({ doctor, arsOptions, hideCodigos = false }
         >
           {saving ? "Guardando..." : "Guardar médico"}
         </button>
-        {isEditing && (
+        {isEditing && canDelete && (
           <button
             onClick={handleDelete}
             className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"

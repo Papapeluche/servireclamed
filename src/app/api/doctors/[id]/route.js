@@ -20,7 +20,16 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { error } = await supabase.from("doctors").delete().eq("id", id);
+  // Con RLS, un DELETE sin permiso no da error: simplemente no borra nada.
+  // Hay que pedir de vuelta la fila borrada para distinguir "no tenías
+  // permiso" de "sí se borró".
+  const { data, error } = await supabase.from("doctors").delete().eq("id", id).select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data || data.length === 0) {
+    return NextResponse.json(
+      { error: "No tienes permiso para eliminar médicos (solo un admin puede)." },
+      { status: 403 }
+    );
+  }
   return NextResponse.json({ ok: true });
 }

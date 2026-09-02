@@ -4,12 +4,14 @@ import DoctorEditor from "@/components/DoctorEditor";
 import DoctorWorkbench from "@/components/DoctorWorkbench";
 import DoctorArsCodigos from "@/components/DoctorArsCodigos";
 import BackLink from "@/components/BackLink";
+import { getCurrentProfile, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditarMedicoPage({ params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const me = await getCurrentProfile(supabase);
 
   const [{ data: doctor, error }, { data: arsOptions }, { data: relaciones }, { data: comprobantes }] =
     await Promise.all([
@@ -73,7 +75,7 @@ export default async function EditarMedicoPage({ params }) {
           Editar datos del médico
         </summary>
         <div className="mt-4">
-          <DoctorEditor doctor={doctor} arsOptions={arsOptions || []} hideCodigos />
+          <DoctorEditor doctor={doctor} arsOptions={arsOptions || []} hideCodigos canDelete={isAdmin(me)} />
         </div>
       </details>
 

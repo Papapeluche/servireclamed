@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CLAIM_SECTIONS, REQUIRED_FIELD_NAMES } from "@/lib/claimFields";
 import ImageZoomViewer from "@/components/ImageZoomViewer";
 
-export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [] }) {
+export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [], profilesMap = {} }) {
   const router = useRouter();
   const [values, setValues] = useState(() => {
     const initial = {};
@@ -187,6 +187,14 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [] 
       </div>
 
       <div>
+        {(claim.captured_by || claim.digitized_by || claim.verified_by) && (
+          <p className="mb-4 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+            {claim.captured_by && <span>Capturado por {profilesMap[claim.captured_by] || "—"}</span>}
+            {claim.digitized_by && <span>Digitado por {profilesMap[claim.digitized_by] || "—"}</span>}
+            {claim.verified_by && <span>Revisado por {profilesMap[claim.verified_by] || "—"}</span>}
+          </p>
+        )}
+
         {lowConfidence.size > 0 && (
           <div className="mb-4 rounded-lg bg-warn-100 px-3 py-2 text-sm text-warn-700">
             {lowConfidence.size} campo(s) marcados como "no se entiende" — revísalos con

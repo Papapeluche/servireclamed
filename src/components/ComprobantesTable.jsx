@@ -16,7 +16,7 @@ const ESTADO_STYLES = {
   anulado: "bg-red-100 text-red-700",
 };
 
-export default function ComprobantesTable({ comprobantes }) {
+export default function ComprobantesTable({ comprobantes, profilesMap = {}, canManage = true }) {
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -48,6 +48,7 @@ export default function ComprobantesTable({ comprobantes }) {
               <th className="px-4 py-2">ARS usado</th>
               <th className="px-4 py-2">Monto</th>
               <th className="px-4 py-2">Fecha de uso</th>
+              <th className="px-4 py-2">Asignado por</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -69,8 +70,9 @@ export default function ComprobantesTable({ comprobantes }) {
                 <td className="px-4 py-2 text-slate-500">
                   {c.used_at ? new Date(c.used_at).toLocaleDateString("es-DO") : "—"}
                 </td>
+                <td className="px-4 py-2 text-slate-500">{profilesMap[c.created_by] || "—"}</td>
                 <td className="px-4 py-2">
-                  {c.estado === "disponible" && <AnularComprobanteButton id={c.id} />}
+                  {c.estado === "disponible" && canManage && <AnularComprobanteButton id={c.id} />}
                   {c.estado === "usado" && c.relaciones?.id && (
                     <a
                       href={`/relaciones/${c.relaciones.id}`}
@@ -84,7 +86,7 @@ export default function ComprobantesTable({ comprobantes }) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   {comprobantes.length === 0
                     ? "Aún no hay comprobantes asignados."
                     : "Ningún comprobante coincide con esa búsqueda."}

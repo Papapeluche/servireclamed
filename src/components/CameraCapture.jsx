@@ -93,7 +93,7 @@ export default function CameraCapture() {
       .insert({
         image_path: fileName,
         status: "pendiente",
-        digitized_by: user?.id ?? null,
+        captured_by: user?.id ?? null,
       })
       .select("id")
       .single();

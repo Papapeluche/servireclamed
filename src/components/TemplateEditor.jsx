@@ -73,7 +73,12 @@ export default function TemplateEditor({ template, arsOptions }) {
 
   async function handleDelete() {
     if (!confirm("¿Eliminar esta plantilla?")) return;
-    await fetch(`/api/templates/${template.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/templates/${template.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({}));
+      setError(msg || "No se pudo eliminar la plantilla.");
+      return;
+    }
     router.push("/plantillas");
     router.refresh();
   }

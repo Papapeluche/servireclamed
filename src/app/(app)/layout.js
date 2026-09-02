@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
+import { getCurrentProfile, isAdmin } from "@/lib/auth";
 
 export default async function AppLayout({ children }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const me = await getCurrentProfile(supabase);
 
   return (
     <div className="min-h-screen">
@@ -31,9 +30,19 @@ export default async function AppLayout({ children }) {
             <Link href="/comprobantes" className="hover:text-brand-600">
               Comprobantes
             </Link>
+            {isAdmin(me) && (
+              <Link href="/usuarios" className="hover:text-brand-600">
+                Usuarios
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span>{user?.email}</span>
+            <span>{me?.full_name || me?.email}</span>
+            {me?.role && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                {me.role}
+              </span>
+            )}
             <LogoutButton />
           </div>
         </div>

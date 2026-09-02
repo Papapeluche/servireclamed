@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlantillasPage() {
   const supabase = await createClient();
+  const me = await getCurrentProfile(supabase);
+  const admin = isAdmin(me);
+
   const { data: templates } = await supabase
     .from("export_templates")
     .select("id, nombre, tipo, ars_catalog(nombre)")
@@ -14,12 +18,14 @@ export default async function PlantillasPage() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-900">Formatos (plantillas)</h1>
-        <Link
-          href="/plantillas/nueva"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          + Nueva plantilla
-        </Link>
+        {admin && (
+          <Link
+            href="/plantillas/nueva"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            + Nueva plantilla
+          </Link>
+        )}
       </div>
 
       <p className="mb-4 text-sm text-slate-500">
@@ -48,9 +54,13 @@ export default async function PlantillasPage() {
             {(templates || []).map((t) => (
               <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link href={`/plantillas/${t.id}`} className="text-brand-600 hover:underline">
-                    {t.nombre}
-                  </Link>
+                  {admin ? (
+                    <Link href={`/plantillas/${t.id}`} className="text-brand-600 hover:underline">
+                      {t.nombre}
+                    </Link>
+                  ) : (
+                    t.nombre
+                  )}
                 </td>
                 <td className="px-4 py-2">{t.ars_catalog?.nombre || "Genérica"}</td>
                 <td className="px-4 py-2">

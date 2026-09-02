@@ -4,6 +4,7 @@ import { CLAIM_STATUS_LABELS } from "@/lib/claimFields";
 import EscanearQR from "@/components/EscanearQR";
 import AutoRefresh from "@/components/AutoRefresh";
 import DashboardSearch from "@/components/DashboardSearch";
+import { getProfilesMap } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -47,16 +48,20 @@ export default async function DashboardPage({ searchParams }) {
 
   let query = supabase
     .from("claims")
-    .select("id, status, afiliado_nombre, ars_id, monto, created_at, ars_catalog(nombre)", {
-      count: "exact",
-    })
+    .select(
+      "id, status, afiliado_nombre, ars_id, monto, created_at, captured_by, digitized_by, ars_catalog(nombre)",
+      { count: "exact" }
+    )
     .order("created_at", { ascending: false })
     .range(from, to);
 
   if (activeStatus) query = query.eq("status", activeStatus);
   if (q) query = query.or(SEARCH_COLUMNS.map((col) => `${col}.ilike.%${q}%`).join(","));
 
-  const { data: claims, error, count: totalFiltered } = await query;
+  const [{ data: claims, error, count: totalFiltered }, profilesMap] = await Promise.all([
+    query,
+    getProfilesMap(supabase),
+  ]);
 
   const totalPages = Math.max(1, Math.ceil((totalFiltered || 0) / PAGE_SIZE));
 
@@ -141,6 +146,7 @@ export default async function DashboardPage({ searchParams }) {
               <th className="px-4 py-2">ARS</th>
               <th className="px-4 py-2">Monto</th>
               <th className="px-4 py-2">Estado</th>
+              <th className="px-4 py-2">Por</th>
               <th className="px-4 py-2">Fecha</th>
             </tr>
           </thead>
@@ -160,13 +166,16 @@ export default async function DashboardPage({ searchParams }) {
                   <StatusBadge status={c.status} />
                 </td>
                 <td className="px-4 py-2 text-slate-500">
+                  {profilesMap[c.digitized_by] || profilesMap[c.captured_by] || "—"}
+                </td>
+                <td className="px-4 py-2 text-slate-500">
                   {new Date(c.created_at).toLocaleDateString("es-DO")}
                 </td>
               </tr>
             ))}
             {(!claims || claims.length === 0) && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                   Aún no hay reclamaciones capturadas.
                 </td>
               </tr>
