@@ -205,6 +205,18 @@ Igual el Historial de `/relaciones`. No se le puso buscador a `/plantillas`
 (son pocos formatos, fijos) ni a las reclamaciones de un médico en su mesa de
 trabajo (ya se filtran por ARS con los chips).
 
+`/medicos` también tiene chips de **centro médico** (arriba del buscador):
+al hacer clic en uno, filtra la tabla a solo los médicos de ese centro. Como
+`centro_medico` es texto libre (cada digitador lo escribe a mano), los chips
+agrupan por versión normalizada (sin mayúsculas ni espacios de más) para que
+"Clínica Abreu" y "clinica abreu " no salgan como dos centros distintos, y
+hay un chip "Sin centro médico" para ubicar rápido a quién le falta ese dato.
+Es una solución de mientras tanto con el dato que ya existe — el usuario
+comentó que esto mejorará más adelante si se crea un catálogo propio de
+centros médicos (con su propia info, no solo el nombre suelto en `doctors`).
+
+
+
 ## Campos reales (no genéricos) — basado en documentos que compartió el usuario
 
 Se revisaron formularios reales de **9 ARS distintas**:
@@ -321,6 +333,13 @@ pública). Para crear el primer usuario:
 
 ## Pendientes / decisiones abiertas
 
+- [ ] Catálogo propio de **centros médicos** (tabla `centros_medicos`, con
+      su propia dirección/teléfono, y `doctors.centro_medico_id` como FK en
+      vez del texto libre actual). Hoy `/medicos` agrupa por el texto tal
+      cual está escrito (normalizado a mayúsculas/espacios), que es una
+      solución de mientras tanto — funciona pero no corrige de raíz que dos
+      digitadores puedan escribir el mismo centro de formas distintas que la
+      normalización no detecte (ej. abreviado vs. completo).
 - [ ] Armar en `/plantillas` la plantilla genérica de relación con el
       formato real que ya usan (una sola vez, sin ARS asignada — el
       catálogo de campos ya cubre las 9 ARS revisadas). Solo hace falta una
