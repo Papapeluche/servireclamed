@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import DoctorEditor from "@/components/DoctorEditor";
+import BackLink from "@/components/BackLink";
 
 export default async function NuevoMedicoPage() {
   const supabase = await createClient();
@@ -11,6 +12,7 @@ export default async function NuevoMedicoPage() {
 
   return (
     <div>
+      <BackLink href="/medicos">Volver a médicos</BackLink>
       <h1 className="mb-4 text-lg font-semibold text-slate-900">Nuevo médico</h1>
       <DoctorEditor arsOptions={arsOptions || []} />
     </div>

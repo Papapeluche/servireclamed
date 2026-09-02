@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ClaimEditor from "@/components/ClaimEditor";
+import BackLink from "@/components/BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,14 @@ export default async function ReclamacionPage({ params }) {
     .createSignedUrl(claim.image_path, 60 * 60);
 
   return (
-    <ClaimEditor
-      claim={claim}
-      imageUrl={signedUrl?.signedUrl}
-      arsOptions={arsOptions || []}
-      doctors={doctors || []}
-    />
+    <div>
+      <BackLink href="/dashboard">Volver al dashboard</BackLink>
+      <ClaimEditor
+        claim={claim}
+        imageUrl={signedUrl?.signedUrl}
+        arsOptions={arsOptions || []}
+        doctors={doctors || []}
+      />
+    </div>
   );
 }

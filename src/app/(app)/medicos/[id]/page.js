@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DoctorEditor from "@/components/DoctorEditor";
 import DoctorWorkbench from "@/components/DoctorWorkbench";
+import BackLink from "@/components/BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function EditarMedicoPage({ params }) {
 
   return (
     <div>
+      <BackLink href="/medicos">Volver a médicos</BackLink>
       <h1 className="mb-1 text-lg font-semibold text-slate-900">{doctor.nombre}</h1>
       <p className="mb-6 text-sm text-slate-500">
         Mesa de trabajo del médico: sus datos, su facturación por ARS y los

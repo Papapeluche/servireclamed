@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import DescargarPlantillaButton from "@/components/DescargarPlantillaButton";
 import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
+import BackLink from "@/components/BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -46,12 +47,7 @@ export default async function RelacionDetallePage({ params }) {
 
   return (
     <div>
-      <p className="mb-1 text-xs text-slate-400">
-        <Link href="/relaciones" className="hover:underline">
-          Relaciones
-        </Link>{" "}
-        / Detalle
-      </p>
+      <BackLink href="/relaciones">Volver a relaciones</BackLink>
       <h1 className="mb-1 text-lg font-semibold text-slate-900">
         {relacion.ars_catalog?.nombre} — {relacion.doctor_nombre || "(médico sin especificar)"}
       </h1>

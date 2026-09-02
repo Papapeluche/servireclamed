@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TemplateEditor from "@/components/TemplateEditor";
+import BackLink from "@/components/BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function EditarPlantillaPage({ params }) {
 
   return (
     <div>
+      <BackLink href="/plantillas">Volver a formatos</BackLink>
       <h1 className="mb-4 text-lg font-semibold text-slate-900">Editar plantilla</h1>
       <TemplateEditor template={template} arsOptions={arsOptions || []} />
     </div>
