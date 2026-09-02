@@ -1,24 +1,62 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CLAIM_STATUS_LABELS } from "@/lib/claimFields";
+import EscanearQR from "@/components/EscanearQR";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+const PAGE_SIZE = 100;
+
+export default async function DashboardPage({ searchParams }) {
+  const params = await searchParams;
   const supabase = await createClient();
 
-  const { data: claims, error } = await supabase
-    .from("claims")
-    .select("id, status, afiliado_nombre, ars_id, monto, created_at, ars_catalog(nombre)")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const activeStatus = params?.estado || "";
+  const page = Math.max(1, Number(params?.pagina) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
-  const counts = {};
-  for (const status of Object.keys(CLAIM_STATUS_LABELS)) counts[status] = 0;
-  for (const c of claims || []) counts[c.status] = (counts[c.status] || 0) + 1;
+  // Los contadores tienen que salir de un conteo real (count: 'exact'), no
+  // de la página que se está mostrando — si no, con más de 100
+  // reclamaciones en total, los números mienten.
+  const countEntries = await Promise.all(
+    Object.keys(CLAIM_STATUS_LABELS).map(async (status) => {
+      const { count } = await supabase
+        .from("claims")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status);
+      return [status, count || 0];
+    })
+  );
+  const counts = Object.fromEntries(countEntries);
+
+  let query = supabase
+    .from("claims")
+    .select("id, status, afiliado_nombre, ars_id, monto, created_at, ars_catalog(nombre)", {
+      count: "exact",
+    })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (activeStatus) query = query.eq("status", activeStatus);
+
+  const { data: claims, error, count: totalFiltered } = await query;
+
+  const totalPages = Math.max(1, Math.ceil((totalFiltered || 0) / PAGE_SIZE));
+
+  function pageHref(p, estado = activeStatus) {
+    const qs = new URLSearchParams();
+    if (estado) qs.set("estado", estado);
+    if (p > 1) qs.set("pagina", String(p));
+    const s = qs.toString();
+    return s ? `/dashboard?${s}` : "/dashboard";
+  }
 
   return (
     <div>
+      <AutoRefresh seconds={15} />
+
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-900">Reclamaciones</h1>
         <Link
@@ -29,23 +67,41 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
+      <div className="mb-6">
+        <EscanearQR />
+      </div>
+
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
         {Object.entries(CLAIM_STATUS_LABELS).map(([status, label]) => (
-          <div
+          <Link
             key={status}
-            className="rounded-xl border border-slate-200 bg-white p-3 text-center"
+            href={pageHref(1, activeStatus === status ? "" : status)}
+            className={`rounded-xl border p-3 text-center transition ${
+              activeStatus === status
+                ? "border-brand-600 bg-brand-50"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
           >
             <div className="text-2xl font-semibold text-slate-900">
               {counts[status] || 0}
             </div>
             <div className="text-xs text-slate-500">{label}</div>
-          </div>
+          </Link>
         ))}
       </div>
 
       {error && (
         <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
           Error cargando reclamaciones: {error.message}
+        </p>
+      )}
+
+      {activeStatus && (
+        <p className="mb-3 text-sm text-slate-500">
+          Filtrando por: <strong>{CLAIM_STATUS_LABELS[activeStatus]}</strong> ·{" "}
+          <Link href="/dashboard" className="text-brand-600 hover:underline">
+            ver todas
+          </Link>
         </p>
       )}
 
@@ -90,6 +146,32 @@ export default async function DashboardPage() {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
+          <span>
+            Página {page} de {totalPages} · {totalFiltered} reclamaciones
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link
+                href={pageHref(page - 1)}
+                className="rounded-lg border border-slate-300 px-3 py-1 hover:bg-slate-50"
+              >
+                Anterior
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link
+                href={pageHref(page + 1)}
+                className="rounded-lg border border-slate-300 px-3 py-1 hover:bg-slate-50"
+              >
+                Siguiente
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -110,6 +110,33 @@ en Humano y ARS-UASD) — desde `/reclamaciones/[id]` hay un botón "+ Otra
 línea de esta misma imagen" que crea una segunda reclamación reutilizando la
 misma foto, en vez de forzar a tomarla de nuevo.
 
+## Capturar desde el celular mientras se digita en la PC
+
+No hace falta "vincular" el celular a la PC — cada dispositivo inicia
+sesión por su cuenta y ambos comparten la misma cola de trabajo a través de
+la base de datos: el celular sube la foto y crea la reclamación en
+`pendiente`, y esa reclamación aparece en `/dashboard` para digitarla desde
+la PC con teclado y pantalla grande.
+
+Para que sea más cómodo entrar a `/capturar` desde el celular sin teclear
+la URL, `/dashboard` muestra un **código QR** (`src/components/EscanearQR.jsx`)
+que apunta directo a esa pantalla. El dashboard también se auto-refresca
+cada 15 segundos (`src/components/AutoRefresh.jsx`) para que lo capturado
+desde el celular aparezca sin tener que recargar la página a mano.
+
+## Volumen — lotes de 2 hasta 600+ reclamaciones por médico/ARS
+
+Todas las consultas que arman una relación o su exportación filtran por
+ARS/médico/relación específicos (nunca traen "todo"), así que un lote de
+cientos de reclamaciones no choca con ningún límite — ni en la base de
+datos ni al generar el Excel. El único límite real que había era en
+`/dashboard`: traía nada más las últimas 100 reclamaciones **en total** sin
+importar el estado, y los contadores de arriba se calculaban sobre esas
+mismas 100 — con más de 100 reclamaciones acumuladas, las más viejas
+desaparecían de la vista sin aviso y los contadores mentían. Se corrigió:
+los contadores ahora salen de un conteo exacto por estado, y la tabla
+pagina de 100 en 100 con filtro por estado (clic en cualquier contador).
+
 ## Campos reales (no genéricos) — basado en documentos que compartió el usuario
 
 Se revisaron formularios reales de **9 ARS distintas**:
