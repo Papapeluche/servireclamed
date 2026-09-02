@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DoctorEditor({ doctor, arsOptions }) {
+export default function DoctorEditor({ doctor, arsOptions, hideCodigos = false }) {
   const router = useRouter();
   const isEditing = Boolean(doctor?.id);
 
@@ -166,60 +166,62 @@ export default function DoctorEditor({ doctor, arsOptions }) {
         </div>
       </div>
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-slate-800">Códigos por ARS</h3>
+      {!hideCodigos && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-800">Códigos por ARS</h3>
 
-        {codigos.length === 0 && (
-          <p className="mb-3 text-sm text-slate-400">Este médico todavía no tiene códigos.</p>
-        )}
+          {codigos.length === 0 && (
+            <p className="mb-3 text-sm text-slate-400">Este médico todavía no tiene códigos.</p>
+          )}
 
-        <div className="mb-3 flex flex-col gap-2">
-          {codigos.map((c) => (
-            <div key={c.ars_id} className="flex items-center gap-2 rounded-lg bg-slate-50 p-2">
-              <span className="w-40 shrink-0 text-sm text-slate-700">{arsName(c.ars_id)}</span>
-              <span className="flex-1 text-sm text-slate-500">{c.codigo}</span>
+          <div className="mb-3 flex flex-col gap-2">
+            {codigos.map((c) => (
+              <div key={c.ars_id} className="flex items-center gap-2 rounded-lg bg-slate-50 p-2">
+                <span className="w-40 shrink-0 text-sm text-slate-700">{arsName(c.ars_id)}</span>
+                <span className="flex-1 text-sm text-slate-500">{c.codigo}</span>
+                <button
+                  type="button"
+                  onClick={() => removeCodigo(c.ars_id)}
+                  className="text-sm text-red-500 hover:text-red-700"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {availableArsForNewCode.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={newCodigoArs}
+                onChange={(e) => setNewCodigoArs(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">ARS...</option>
+                {availableArsForNewCode.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.nombre}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={newCodigoValor}
+                onChange={(e) => setNewCodigoValor(e.target.value)}
+                placeholder="Código"
+                className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
               <button
                 type="button"
-                onClick={() => removeCodigo(c.ars_id)}
-                className="text-sm text-red-500 hover:text-red-700"
+                onClick={addCodigo}
+                disabled={!newCodigoArs || !newCodigoValor.trim()}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
               >
-                ✕
+                + Agregar
               </button>
             </div>
-          ))}
+          )}
         </div>
-
-        {availableArsForNewCode.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={newCodigoArs}
-              onChange={(e) => setNewCodigoArs(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">ARS...</option>
-              {availableArsForNewCode.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nombre}
-                </option>
-              ))}
-            </select>
-            <input
-              value={newCodigoValor}
-              onChange={(e) => setNewCodigoValor(e.target.value)}
-              placeholder="Código"
-              className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={addCodigo}
-              disabled={!newCodigoArs || !newCodigoValor.trim()}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
-            >
-              + Agregar
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 

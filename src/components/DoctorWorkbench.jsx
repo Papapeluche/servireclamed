@@ -17,8 +17,41 @@ export default function DoctorWorkbench({ arsOptions, relaciones, comprobantes }
 
   const usados = comprobantes.filter((c) => c.estado === "usado");
 
+  const porVencer = useMemo(() => {
+    const in30 = new Date();
+    in30.setDate(in30.getDate() + 30);
+    return comprobantes
+      .filter((c) => c.estado === "disponible" && c.vencimiento && new Date(c.vencimiento) <= in30)
+      .sort((a, b) => new Date(a.vencimiento) - new Date(b.vencimiento));
+  }, [comprobantes]);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div>
+      {porVencer.length > 0 && (
+        <div className="mb-6 rounded-xl border border-warn-500 bg-warn-100/40 p-4">
+          <h2 className="mb-2 text-sm font-semibold text-warn-700">
+            ⚠ {porVencer.length} comprobante(s) por vencer o vencido(s)
+          </h2>
+          <ul className="flex flex-col gap-1 text-sm text-warn-700">
+            {porVencer.map((c) => {
+              const vencido = new Date(c.vencimiento) < new Date();
+              return (
+                <li key={c.id} className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono">NCF {c.numero}</span>
+                  <span>·</span>
+                  <span>{c.ars_catalog?.nombre || "(sin ARS asignada aún)"}</span>
+                  <span>·</span>
+                  <span className={vencido ? "font-semibold" : ""}>
+                    {vencido ? "Venció" : "Vence"} el {c.vencimiento}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-1 text-sm font-semibold text-slate-800">Facturación por ARS</h2>
         <p className="mb-3 text-xs text-slate-500">
@@ -113,6 +146,7 @@ export default function DoctorWorkbench({ arsOptions, relaciones, comprobantes }
           </ul>
         )}
       </section>
+      </div>
     </div>
   );
 }

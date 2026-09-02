@@ -119,17 +119,38 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    relación es solo un listado de trabajo, la hoja de presentación es la
    factura real).
 
-8. `/medicos/[id]` — **mesa de trabajo del médico**: además de editar sus
-   datos y códigos por ARS (ahora en un panel plegable, para no perder de
-   vista el resto), la página tiene dos secciones:
-   - **Facturación por ARS**: se eligen chips por ARS (solo aparecen las que
-     tienen algo) y se ve el historial de relaciones de ese médico en esa
-     ARS — fecha, total, y si ya se generó la hoja de presentación o sigue
-     solo como relación — cada fila enlaza a `/relaciones/[id]`.
-   - **Comprobantes (NCF) usados**: lista de los NCF que ese médico ya
-     consumió, con la ARS y el monto a la vista; al hacer clic se despliega
-     en qué relación se usó y cuándo, con un enlace a "ver todos los datos
+8. `/medicos/[id]` — **mesa de trabajo del médico**. Rediseñada después de
+   una revisión con tres enfoques (arquitectura de información, diseño
+   visual, y contexto de negocio) sobre la primera versión, que amontonaba
+   los códigos por ARS en la lista y mezclaba edición ocasional con datos de
+   consulta frecuente. Ahora:
+   - Una fila de **resumen** (ARS con código, relaciones totales, monto
+     histórico, NCF por vencer) para tener el estado del médico de un
+     vistazo, sin tener que leer tabla por tabla.
+   - **ARS y códigos** — sección siempre visible (ya no escondida dentro del
+     panel de edición) con el código de ese médico en cada ARS, en un
+     listado de dos columnas legible incluso con 9+ ARS, y su propio
+     agregar/quitar independiente del formulario de datos generales.
+   - El panel de **editar datos del médico** (nombre, cédula, RNC, teléfono,
+     especialidad, centro) queda plegado por separado, porque se edita rara
+     vez — ya no comparte espacio con los códigos por ARS, que sí se
+     consultan seguido.
+   - **Facturación por ARS**: chips por ARS (solo las que tienen algo) con
+     el historial de relaciones de ese médico — fecha, total, y si ya se
+     generó la hoja de presentación o sigue solo como relación.
+   - **Alerta de comprobantes por vencer**: si el médico tiene NCF
+     `disponible` con vencimiento dentro de 30 días (o ya vencido) aparece
+     un aviso arriba de todo — es dinero/tiempo perdido si un NCF vence sin
+     usarse, y antes no había forma de verlo sin revisar comprobante por
+     comprobante.
+   - **Comprobantes (NCF) usados**: al hacer clic se despliega en qué
+     relación se usó cada uno y cuándo, con enlace a "ver todos los datos
      relacionados" (la ficha completa en `/relaciones/[id]`).
+   En la lista `/medicos`, la columna de códigos por ARS (antes una fila de
+   chips que podía tener 9+ elementos por médico, la queja original de
+   Angel) se reemplazó por un badge compacto ("6 ARS" / "Sin código") con
+   tooltip — el detalle completo vive en la ficha del médico, no en la
+   lista.
    Esto requirió agregar `doctor_id` real (FK) tanto a `claims` como a
    `relaciones` — antes solo se emparejaban por nombre/cédula, que puede
    variar entre reclamaciones; ahora se resuelve una sola vez al digitar
