@@ -1,6 +1,11 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
-import { HEADER_FIELD_LABELS } from "@/lib/relacionFields";
+import {
+  HEADER_FIELD_LABELS,
+  DEFAULT_HOJA_HEADER_FIELDS,
+  DEFAULT_HOJA_CATEGORIAS,
+  buildRelacionValues,
+} from "@/lib/relacionFields";
 import { logAudit } from "@/lib/auth";
 
 export async function POST(request, { params }) {
@@ -58,23 +63,11 @@ export async function POST(request, { params }) {
     if (!headerFields?.length) {
       headerFields = template?.header_fields?.length
         ? template.header_fields
-        : [
-            { field: "ars_nombre", label: "ARS" },
-            { field: "ars_rnc", label: "RNC" },
-            { field: "fecha", label: "Fecha" },
-            { field: "doctor_nombre", label: "Médico" },
-            { field: "doctor_cedula", label: "Cédula" },
-            { field: "doctor_codigo", label: "Código" },
-            { field: "especialidad", label: "Especialidad" },
-            { field: "centro_medico", label: "Centro" },
-            { field: "telefono_medico", label: "Teléfono" },
-          ];
+        : DEFAULT_HOJA_HEADER_FIELDS;
     }
 
     if (!categorias?.length) {
-      categorias = template?.categorias?.length
-        ? template.categorias
-        : [{ label: "Total", tipos: [] }];
+      categorias = template?.categorias?.length ? template.categorias : DEFAULT_HOJA_CATEGORIAS;
     }
   }
 
@@ -136,20 +129,7 @@ export async function POST(request, { params }) {
     },
   });
 
-  const relacionValues = {
-    fecha: relacion.fecha,
-    ars_nombre: relacion.ars_catalog?.nombre || "",
-    ars_rnc: relacion.ars_catalog?.rnc || "",
-    doctor_nombre: relacion.doctor_nombre || "",
-    doctor_cedula: relacion.doctor_cedula || "",
-    doctor_rnc: relacion.doctor_rnc || "",
-    doctor_codigo: relacion.doctor_codigo || "",
-    especialidad: relacion.especialidad || "",
-    centro_medico: relacion.centro_medico || "",
-    telefono_medico: relacion.telefono_medico || "",
-    ncf: comprobante?.numero || "",
-    ncf_vencimiento: comprobante?.vencimiento || "",
-  };
+  const relacionValues = buildRelacionValues(relacion, comprobante);
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Hoja de presentación");

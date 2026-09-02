@@ -1,25 +1,11 @@
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
-import { HEADER_FIELD_LABELS } from "@/lib/relacionFields";
-
-const DEFAULT_HEADER_FIELDS = [
-  { field: "fecha", label: "Fecha" },
-  { field: "doctor_nombre", label: "Médico" },
-  { field: "doctor_cedula", label: "Cédula" },
-  { field: "doctor_codigo", label: "Código" },
-  { field: "especialidad", label: "Especialidad" },
-  { field: "centro_medico", label: "Centro" },
-  { field: "telefono_medico", label: "Teléfono" },
-];
-
-const DEFAULT_TABLE_COLUMNS = [
-  { field: "afiliado_nombre", label: "Afiliado" },
-  { field: "no_carnet_nss", label: "NSS contrato" },
-  { field: "no_autorizacion", label: "No. Autorización" },
-  { field: "fecha_servicio", label: "Fecha de Servicio" },
-  { field: "tipo_servicio", label: "Tipo de Servicio" },
-  { field: "monto", label: "Valor RD$" },
-];
+import {
+  HEADER_FIELD_LABELS,
+  DEFAULT_RELACION_HEADER_FIELDS,
+  DEFAULT_RELACION_TABLE_COLUMNS,
+  buildRelacionValues,
+} from "@/lib/relacionFields";
 
 async function buildWorkbook(supabase, id, overrides) {
   const { data: relacion, error: relacionError } = await supabase
@@ -50,10 +36,14 @@ async function buildWorkbook(supabase, id, overrides) {
     }
 
     if (!headerFields?.length) {
-      headerFields = template?.header_fields?.length ? template.header_fields : DEFAULT_HEADER_FIELDS;
+      headerFields = template?.header_fields?.length
+        ? template.header_fields
+        : DEFAULT_RELACION_HEADER_FIELDS;
     }
     if (!tableColumns?.length) {
-      tableColumns = template?.table_columns?.length ? template.table_columns : DEFAULT_TABLE_COLUMNS;
+      tableColumns = template?.table_columns?.length
+        ? template.table_columns
+        : DEFAULT_RELACION_TABLE_COLUMNS;
     }
     if (!totalField) totalField = template?.total_field || "monto";
   }
@@ -69,18 +59,7 @@ async function buildWorkbook(supabase, id, overrides) {
     return { error: rowsError.message, status: 500 };
   }
 
-  const relacionValues = {
-    fecha: relacion.fecha,
-    ars_nombre: relacion.ars_catalog?.nombre || "",
-    ars_rnc: relacion.ars_catalog?.rnc || "",
-    doctor_nombre: relacion.doctor_nombre || "",
-    doctor_cedula: relacion.doctor_cedula || "",
-    doctor_rnc: relacion.doctor_rnc || "",
-    doctor_codigo: relacion.doctor_codigo || "",
-    especialidad: relacion.especialidad || "",
-    centro_medico: relacion.centro_medico || "",
-    telefono_medico: relacion.telefono_medico || "",
-  };
+  const relacionValues = buildRelacionValues(relacion);
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Relación");

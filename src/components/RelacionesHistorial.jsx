@@ -3,15 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import SearchInput from "@/components/SearchInput";
-import DescargarPlantillaButton from "@/components/DescargarPlantillaButton";
-import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
 
-export default function RelacionesHistorial({
-  relaciones,
-  relacionTemplates,
-  hojaTemplates,
-  comprobantesByDoctor,
-}) {
+export default function RelacionesHistorial({ relaciones }) {
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -22,12 +15,6 @@ export default function RelacionesHistorial({
       return haystack.includes(query);
     });
   }, [relaciones, q]);
-
-  function comprobanteFor(r) {
-    const key = r.doctor_id || (r.doctor_nombre || "").trim().toLowerCase();
-    if (!key) return null;
-    return comprobantesByDoctor[key] || null;
-  }
 
   return (
     <section>
@@ -64,21 +51,14 @@ export default function RelacionesHistorial({
                 <td className="px-4 py-2 text-slate-500">{r.fecha}</td>
                 <td className="px-4 py-2">RD$ {Number(r.total_monto).toFixed(2)}</td>
                 <td className="px-4 py-2">
-                  <DescargarPlantillaButton
-                    relacionId={r.id}
-                    templates={(relacionTemplates || []).filter(
-                      (t) => !t.ars_id || t.ars_id === r.ars_id
-                    )}
-                  />
+                  <Link href={`/relaciones/${r.id}/plantilla`} className="text-xs text-brand-600 hover:underline">
+                    Ver plantilla
+                  </Link>
                 </td>
                 <td className="px-4 py-2">
-                  <GenerarHojaPresentacionButton
-                    relacionId={r.id}
-                    templates={(hojaTemplates || []).filter(
-                      (t) => !t.ars_id || t.ars_id === r.ars_id
-                    )}
-                    comprobante={comprobanteFor(r)}
-                  />
+                  <Link href={`/relaciones/${r.id}/hoja`} className="text-xs text-brand-600 hover:underline">
+                    Ver hoja de presentación
+                  </Link>
                 </td>
               </tr>
             ))}

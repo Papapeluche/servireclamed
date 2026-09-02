@@ -1,22 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import HojaPresentacionPanel from "@/components/HojaPresentacionPanel";
-import RelacionExportPanel from "@/components/RelacionExportPanel";
+import { useRouter } from "next/navigation";
 
-export default function RelacionGroupCard({ entry, relacionTemplates, hojaTemplates, comprobante }) {
+export default function RelacionGroupCard({ entry, relacionTemplates }) {
+  const router = useRouter();
   const [relacionId, setRelacionId] = useState(null);
-  const [creating, setCreating] = useState(false);
-  const [showHojaPanel, setShowHojaPanel] = useState(false);
-  const [showPlantillaPanel, setShowPlantillaPanel] = useState(false);
+  const [creating, setCreating] = useState(null); // null | "plantilla" | "hoja"
   const defaultTemplate =
     relacionTemplates?.find((t) => t.ars_id === entry.arsId) ||
     relacionTemplates?.find((t) => !t.ars_id);
-  const [templateId, setTemplateId] = useState(defaultTemplate?.id || "");
 
   async function ensureRelacion() {
     if (relacionId) return relacionId;
-    setCreating(true);
 
     const res = await fetch("/api/relaciones", {
       method: "POST",
@@ -26,36 +22,25 @@ export default function RelacionGroupCard({ entry, relacionTemplates, hojaTempla
         doctor_id: entry.doctorId || null,
         doctor_nombre: entry.doctorNombre,
         doctor_codigo: entry.doctorCodigo,
-        template_id: templateId || null,
+        template_id: defaultTemplate?.id || null,
       }),
     });
 
     const data = await res.json();
-    setCreating(false);
-
     if (!res.ok) {
       alert(data.error || "No se pudo generar la relación.");
       return null;
     }
-
     setRelacionId(data.id);
     return data.id;
   }
 
-  async function handleConvertirPlantilla() {
-    if (!relacionId) {
-      const id = await ensureRelacion();
-      if (!id) return;
-    }
-    setShowPlantillaPanel(true);
-  }
-
-  async function handleConvertirHoja() {
-    if (!relacionId) {
-      const id = await ensureRelacion();
-      if (!id) return;
-    }
-    setShowHojaPanel(true);
+  async function irA(destino) {
+    setCreating(destino);
+    const id = await ensureRelacion();
+    setCreating(null);
+    if (!id) return;
+    router.push(`/relaciones/${id}/${destino}`);
   }
 
   return (
@@ -67,11 +52,6 @@ export default function RelacionGroupCard({ entry, relacionTemplates, hojaTempla
             {entry.doctorNombre || "(médico sin especificar)"}
           </p>
         </div>
-        {relacionId && (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-            Relación generada
-          </span>
-        )}
       </div>
 
       <div className="mb-3 flex flex-wrap gap-3 text-xs text-slate-500">
@@ -87,59 +67,22 @@ export default function RelacionGroupCard({ entry, relacionTemplates, hojaTempla
           Aún no hay reclamaciones revisadas en este grupo para convertir.
         </p>
       ) : (
-        <>
-          {relacionTemplates?.length > 1 && !relacionId && (
-            <select
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="mb-2 w-full rounded-lg border border-slate-300 px-2 py-1 text-xs"
-            >
-              {relacionTemplates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleConvertirPlantilla}
-              disabled={creating}
-              className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {creating ? "Generando..." : "Convertir en plantilla"}
-            </button>
-            <button
-              onClick={handleConvertirHoja}
-              disabled={creating}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-            >
-              Convertir en hoja de presentación
-            </button>
-          </div>
-
-          {showPlantillaPanel && relacionId && (
-            <div className="mt-2">
-              <RelacionExportPanel
-                relacionId={relacionId}
-                templates={relacionTemplates}
-                onClose={() => setShowPlantillaPanel(false)}
-              />
-            </div>
-          )}
-
-          {showHojaPanel && relacionId && (
-            <div className="mt-2">
-              <HojaPresentacionPanel
-                relacionId={relacionId}
-                templates={hojaTemplates}
-                comprobante={comprobante}
-                onClose={() => setShowHojaPanel(false)}
-              />
-            </div>
-          )}
-        </>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => irA("plantilla")}
+            disabled={creating !== null}
+            className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            {creating === "plantilla" ? "Generando..." : "Ver plantilla de relación"}
+          </button>
+          <button
+            onClick={() => irA("hoja")}
+            disabled={creating !== null}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {creating === "hoja" ? "Generando..." : "Ver hoja de presentación"}
+          </button>
+        </div>
       )}
     </div>
   );

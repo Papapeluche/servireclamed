@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import DescargarPlantillaButton from "@/components/DescargarPlantillaButton";
-import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
 import BackLink from "@/components/BackLink";
 import { getProfilesMap } from "@/lib/auth";
 
@@ -22,28 +20,19 @@ export default async function RelacionDetallePage({ params }) {
 
   if (error || !relacion) notFound();
 
-  const [{ data: rows }, { data: comprobante }, { data: relacionTemplates }, { data: hojaTemplates }, profilesMap] =
-    await Promise.all([
-      supabase
-        .from("relacion_claims")
-        .select("orden, claims(*)")
-        .eq("relacion_id", id)
-        .order("orden", { ascending: true }),
-      supabase
-        .from("comprobantes")
-        .select("id, numero, monto, used_at, vencimiento")
-        .eq("relacion_id", id)
-        .maybeSingle(),
-      supabase
-        .from("export_templates")
-        .select("id, nombre, ars_id, header_fields, table_columns")
-        .eq("tipo", "relacion"),
-      supabase
-        .from("export_templates")
-        .select("id, nombre, ars_id, header_fields, categorias")
-        .eq("tipo", "hoja_presentacion"),
-      getProfilesMap(supabase),
-    ]);
+  const [{ data: rows }, { data: comprobante }, profilesMap] = await Promise.all([
+    supabase
+      .from("relacion_claims")
+      .select("orden, claims(*)")
+      .eq("relacion_id", id)
+      .order("orden", { ascending: true }),
+    supabase
+      .from("comprobantes")
+      .select("id, numero, monto, used_at, vencimiento")
+      .eq("relacion_id", id)
+      .maybeSingle(),
+    getProfilesMap(supabase),
+  ]);
 
   const claims = (rows || []).map((r) => r.claims).filter(Boolean);
 
@@ -105,17 +94,18 @@ export default async function RelacionDetallePage({ params }) {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-3">
-        <DescargarPlantillaButton
-          relacionId={relacion.id}
-          templates={(relacionTemplates || []).filter(
-            (t) => !t.ars_id || t.ars_id === relacion.ars_id
-          )}
-        />
-        <GenerarHojaPresentacionButton
-          relacionId={relacion.id}
-          templates={(hojaTemplates || []).filter((t) => !t.ars_id || t.ars_id === relacion.ars_id)}
-          comprobante={null}
-        />
+        <Link
+          href={`/relaciones/${relacion.id}/plantilla`}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          Ver plantilla de relación
+        </Link>
+        <Link
+          href={`/relaciones/${relacion.id}/hoja`}
+          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Ver hoja de presentación
+        </Link>
       </div>
 
       <section>

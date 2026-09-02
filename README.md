@@ -521,15 +521,58 @@ todavía, y ahí sigue sin mezclar médicos con `doctor_id` distinto, así ese
 no tenga ninguno.
 
 **¿Avisa si al médico o a la ARS le faltan datos que la plantilla pide?**
-Ahora sí. `GET`/`POST /api/relaciones/[id]/export` y
+Ahora sí, y de dos formas. `GET`/`POST /api/relaciones/[id]/export` y
 `POST /api/relaciones/[id]/hoja-presentacion` revisan, de los campos del
 encabezado que se van a usar, cuáles vienen vacíos para ese médico/ARS
 específico (ej. falta el RNC, falta el teléfono, falta el código en esa
-ARS) y lo mandan en un header `X-Missing-Fields` junto con el archivo. No
-bloquea la descarga — a veces un campo vacío es legítimo — pero
-`RelacionExportPanel` y `HojaPresentacionPanel` muestran una alerta después
-de descargar, listando exactamente qué falta y dónde completarlo (la ficha
-del médico o de la ARS).
+ARS) y lo mandan en un header `X-Missing-Fields` junto con el archivo — eso
+sigue ahí como respaldo. Pero desde que existe la vista previa con datos
+reales (ver "Vista previa de relación y hoja de presentación" más abajo),
+lo normal es que el aviso ya se vea ANTES de descargar nada — directo en la
+pantalla de previsualización — así que casi nunca hace falta llegar al
+`X-Missing-Fields` para enterarse.
+
+## Vista previa de relación y hoja de presentación (con datos reales)
+
+Antes, al convertir un grupo de reclamaciones revisadas, los botones
+"Convertir en plantilla" / "Convertir en hoja de presentación" abrían un
+panel flotante angosto (elegir campos → "Descargar") sin ver el documento
+en sí — igual que le pasaba a `/plantillas` antes de tener vista previa
+(ver esa sección más abajo). Ahora es el mismo patrón: primero se VE el
+documento, con las reclamaciones reales de esa relación ya puestas en la
+tabla (no datos de ejemplo), y desde ahí se decide.
+
+- `RelacionGroupCard.jsx` (en `/relaciones`) y las dos columnas del
+  historial (`RelacionesHistorial.jsx`) ya no abren ningún panel: crean (o
+  reusan) la relación y llevan directo a `/relaciones/[id]/plantilla` o
+  `/relaciones/[id]/hoja`.
+- **`/relaciones/[id]/plantilla`** (`RelacionTemplatePreview.jsx`) — arma la
+  tabla completa con TODAS las reclamaciones de esa relación (no 3 de
+  muestra), calcula el total real, y muestra el aviso de campos faltantes
+  del médico/ARS directo en la pantalla si aplica. Tres acciones:
+  **Descargar en Excel**, **Imprimir** (`window.print()`, con estilos
+  `print:hidden` para esconder los botones al imprimir) y **Editar campos**
+  (despliega el mismo editor de campos de encabezado/columnas de tabla que
+  antes vivía en el panel flotante, ahora embebido — cambia la vista previa
+  en vivo antes de descargar, solo para esa descarga puntual).
+- **`/relaciones/[id]/hoja`** (`HojaPresentacionPreview.jsx`) — igual, pero
+  agrupado por categoría de facturación (montos reales sumados por
+  categoría, no de ejemplo). Como generar la hoja de verdad SÍ tiene efecto
+  real (puede consumir un comprobante/NCF y marca `hoja_generada_at`), el
+  botón de Descargar pide confirmación explícita solo cuando va a consumir
+  un NCF — Imprimir y Editar campos son de solo lectura, sin ese riesgo,
+  así que se pueden usar libremente para revisar antes de decidir.
+- Ambas vistas resuelven la plantilla por defecto con el mismo criterio que
+  ya usaban las rutas de exportación (la plantilla guardada en la relación,
+  si la hay; si no, la de esa ARS; si no, la genérica de fábrica) — ahora
+  centralizado en `src/lib/relacionFields.js`
+  (`DEFAULT_RELACION_HEADER_FIELDS`, `DEFAULT_RELACION_TABLE_COLUMNS`,
+  `DEFAULT_HOJA_HEADER_FIELDS`, `DEFAULT_HOJA_CATEGORIAS`,
+  `buildRelacionValues()`) para que la vista previa y el archivo que
+  realmente se descarga nunca puedan quedar desincronizados.
+- Se eliminaron `DescargarPlantillaButton.jsx`, `GenerarHojaPresentacionButton.jsx`,
+  `RelacionExportPanel.jsx` y `HojaPresentacionPanel.jsx` — su lógica quedó
+  absorbida dentro de las dos vistas previas nuevas.
 
 ## Gobernanza de usuarios — roles y atribución
 

@@ -56,50 +56,12 @@ export default async function RelacionesPage() {
     .select("id, nombre, ars_id, header_fields, table_columns")
     .eq("tipo", "relacion");
 
-  const { data: hojaTemplates } = await supabase
-    .from("export_templates")
-    .select("id, nombre, ars_id, header_fields, categorias")
-    .eq("tipo", "hoja_presentacion");
-
-  // Para sugerir el próximo comprobante (NCF) disponible por médico. Se
-  // prefiere doctor_id (la FK real) sobre el nombre en texto — mismo
-  // criterio de rigurosidad que la agrupación de arriba.
-  const { data: doctorsForMatch } = await supabase.from("doctors").select("id, nombre");
-  const { data: comprobantesDisponibles } = await supabase
-    .from("comprobantes")
-    .select("id, numero, doctor_id")
-    .eq("estado", "disponible")
-    .order("created_at", { ascending: true });
-
-  function nextComprobanteFor(doctorId, doctorNombre) {
-    let id = doctorId;
-    if (!id) {
-      if (!doctorNombre) return null;
-      const doctor = (doctorsForMatch || []).find(
-        (d) => d.nombre.trim().toLowerCase() === doctorNombre.trim().toLowerCase()
-      );
-      id = doctor?.id;
-    }
-    if (!id) return null;
-    return (comprobantesDisponibles || []).find((c) => c.doctor_id === id) || null;
-  }
-
   const { data: relaciones } = await supabase
     .from("relaciones")
     .select(
       "id, fecha, estado, total_monto, doctor_id, doctor_nombre, doctor_codigo, doctor_cedula, ars_id, ars_catalog(nombre)"
     )
     .order("created_at", { ascending: false });
-
-  // Los componentes de servidor no pueden pasarle funciones a los de
-  // cliente, así que se resuelve acá el próximo comprobante de cada médico
-  // presente en el historial y se manda como mapa plano.
-  const comprobantesByDoctor = {};
-  for (const r of relaciones || []) {
-    const key = r.doctor_id || (r.doctor_nombre || "").trim().toLowerCase();
-    if (!key || key in comprobantesByDoctor) continue;
-    comprobantesByDoctor[key] = nextComprobanteFor(r.doctor_id, r.doctor_nombre);
-  }
 
   return (
     <div>
@@ -124,21 +86,12 @@ export default async function RelacionesPage() {
               relacionTemplates={(relacionTemplates || []).filter(
                 (t) => !t.ars_id || t.ars_id === entry.arsId
               )}
-              hojaTemplates={(hojaTemplates || []).filter(
-                (t) => !t.ars_id || t.ars_id === entry.arsId
-              )}
-              comprobante={nextComprobanteFor(entry.doctorId, entry.doctorNombre)}
             />
           ))}
         </div>
       )}
 
-      <RelacionesHistorial
-        relaciones={relaciones || []}
-        relacionTemplates={relacionTemplates || []}
-        hojaTemplates={hojaTemplates || []}
-        comprobantesByDoctor={comprobantesByDoctor}
-      />
+      <RelacionesHistorial relaciones={relaciones || []} />
 
       <p className="mt-4 text-xs text-slate-400">
         ¿Formatos por ARS?{" "}
