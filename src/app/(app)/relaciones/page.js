@@ -45,6 +45,24 @@ export default async function RelacionesPage() {
     .select("id, nombre, ars_id")
     .eq("tipo", "relacion");
 
+  // Para sugerir el próximo comprobante disponible por médico (el nombre en
+  // claims es texto libre, así que se resuelve por coincidencia de nombre).
+  const { data: doctorsForMatch } = await supabase.from("doctors").select("id, nombre");
+  const { data: comprobantesDisponibles } = await supabase
+    .from("comprobantes")
+    .select("id, numero, doctor_id")
+    .eq("estado", "disponible")
+    .order("created_at", { ascending: true });
+
+  function nextComprobanteFor(doctorNombre) {
+    if (!doctorNombre) return null;
+    const doctor = (doctorsForMatch || []).find(
+      (d) => d.nombre.trim().toLowerCase() === doctorNombre.trim().toLowerCase()
+    );
+    if (!doctor) return null;
+    return (comprobantesDisponibles || []).find((c) => c.doctor_id === doctor.id) || null;
+  }
+
   return (
     <div>
       <h1 className="mb-4 text-lg font-semibold text-slate-900">Relaciones</h1>
@@ -89,6 +107,7 @@ export default async function RelacionesPage() {
                   templates={(templates || []).filter(
                     (t) => !t.ars_id || t.ars_id === entry.arsId
                   )}
+                  comprobante={nextComprobanteFor(entry.doctorNombre)}
                 />
               </div>
             ))}

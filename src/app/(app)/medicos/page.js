@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,15 @@ export default async function MedicosPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-lg font-semibold text-slate-900">Médicos</h1>
+      <div className="mb-1 flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-slate-900">Médicos</h1>
+        <Link
+          href="/medicos/nuevo"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          + Nuevo médico
+        </Link>
+      </div>
       <p className="mb-4 text-sm text-slate-500">
         Catálogo de médicos y su código ante cada ARS (el código de un médico
         no es el mismo en todas las ARS). Al digitar una reclamación, si el
@@ -31,8 +40,12 @@ export default async function MedicosPage() {
           </thead>
           <tbody>
             {(doctors || []).map((d) => (
-              <tr key={d.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{d.nombre}</td>
+              <tr key={d.id} className="border-t border-slate-100 hover:bg-slate-50">
+                <td className="px-4 py-2">
+                  <Link href={`/medicos/${d.id}`} className="text-brand-600 hover:underline">
+                    {d.nombre}
+                  </Link>
+                </td>
                 <td className="px-4 py-2 text-slate-500">{d.cedula || "—"}</td>
                 <td className="px-4 py-2 text-slate-500">{d.especialidad || "—"}</td>
                 <td className="px-4 py-2">
