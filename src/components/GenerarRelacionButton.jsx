@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function GenerarRelacionButton({ arsId }) {
+export default function GenerarRelacionButton({ arsId, doctorNombre, doctorCodigo }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -12,7 +12,7 @@ export default function GenerarRelacionButton({ arsId }) {
     const res = await fetch("/api/relaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ars_id: arsId }),
+      body: JSON.stringify({ ars_id: arsId, doctor_nombre: doctorNombre, doctor_codigo: doctorCodigo }),
     });
     setLoading(false);
 

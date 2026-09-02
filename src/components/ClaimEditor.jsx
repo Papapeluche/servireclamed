@@ -51,14 +51,19 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions }) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const payload = {
-      ...values,
-      monto_reclamado: values.monto_reclamado ? Number(values.monto_reclamado) : null,
-      fecha_servicio: values.fecha_servicio || null,
-      ars_id: values.ars_id || null,
-      low_confidence_fields: Array.from(lowConfidence),
-      status: nextStatus,
-    };
+    const payload = { ...values, ars_id: values.ars_id || null };
+    for (const section of CLAIM_SECTIONS) {
+      for (const field of section.fields) {
+        const raw = values[field.name];
+        if (field.type === "number") {
+          payload[field.name] = raw === "" || raw == null ? null : Number(raw);
+        } else if (field.type === "date") {
+          payload[field.name] = raw || null;
+        }
+      }
+    }
+    payload.low_confidence_fields = Array.from(lowConfidence);
+    payload.status = nextStatus;
 
     if (nextStatus === "revisado") {
       payload.verified_by = user?.id ?? null;

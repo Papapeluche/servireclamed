@@ -11,16 +11,23 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { ars_id } = await request.json();
+  const { ars_id, doctor_nombre, doctor_codigo } = await request.json();
   if (!ars_id) {
     return NextResponse.json({ error: "Falta ars_id" }, { status: 400 });
   }
 
-  const { data: claims, error: claimsError } = await supabase
+  let query = supabase
     .from("claims")
-    .select("id, monto_reclamado")
+    .select(
+      "id, monto, doctor_nombre, doctor_codigo, doctor_cedula, especialidad, centro_medico, telefono_medico"
+    )
     .eq("ars_id", ars_id)
     .eq("status", "revisado");
+
+  query = doctor_nombre ? query.eq("doctor_nombre", doctor_nombre) : query.is("doctor_nombre", null);
+  query = doctor_codigo ? query.eq("doctor_codigo", doctor_codigo) : query.is("doctor_codigo", null);
+
+  const { data: claims, error: claimsError } = await query;
 
   if (claimsError) {
     return NextResponse.json({ error: claimsError.message }, { status: 500 });
@@ -28,16 +35,28 @@ export async function POST(request) {
 
   if (!claims || claims.length === 0) {
     return NextResponse.json(
-      { error: "No hay reclamaciones revisadas pendientes para esta ARS" },
+      { error: "No hay reclamaciones revisadas pendientes para este médico/ARS" },
       { status: 400 }
     );
   }
 
-  const totalMonto = claims.reduce((sum, c) => sum + Number(c.monto_reclamado || 0), 0);
+  const totalMonto = claims.reduce((sum, c) => sum + Number(c.monto || 0), 0);
+  const first = claims[0];
 
   const { data: relacion, error: relacionError } = await supabase
     .from("relaciones")
-    .insert({ ars_id, total_monto: totalMonto, created_by: user.id, estado: "generada" })
+    .insert({
+      ars_id,
+      total_monto: totalMonto,
+      created_by: user.id,
+      estado: "generada",
+      doctor_nombre: first.doctor_nombre,
+      doctor_codigo: first.doctor_codigo,
+      doctor_cedula: first.doctor_cedula,
+      especialidad: first.especialidad,
+      centro_medico: first.centro_medico,
+      telefono_medico: first.telefono_medico,
+    })
     .select("id")
     .single();
 

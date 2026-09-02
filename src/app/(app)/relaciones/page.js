@@ -6,26 +6,37 @@ export const dynamic = "force-dynamic";
 export default async function RelacionesPage() {
   const supabase = await createClient();
 
+  // La relación real (ver Senasa) se arma por médico dentro de cada ARS, no
+  // por ARS completa — cada médico tiene su propio bloque de encabezado.
   const { data: pendingClaims } = await supabase
     .from("claims")
-    .select("id, monto_reclamado, ars_id, ars_catalog(id, nombre)")
+    .select(
+      "id, monto, ars_id, doctor_nombre, doctor_codigo, ars_catalog(id, nombre)"
+    )
     .eq("status", "revisado");
 
-  const pendingByArs = new Map();
+  const pendingGroups = new Map();
   for (const c of pendingClaims || []) {
     if (!c.ars_id) continue;
-    const key = c.ars_id;
-    if (!pendingByArs.has(key)) {
-      pendingByArs.set(key, { ars: c.ars_catalog, count: 0, total: 0 });
+    const key = `${c.ars_id}::${c.doctor_nombre || ""}::${c.doctor_codigo || ""}`;
+    if (!pendingGroups.has(key)) {
+      pendingGroups.set(key, {
+        arsId: c.ars_id,
+        ars: c.ars_catalog,
+        doctorNombre: c.doctor_nombre,
+        doctorCodigo: c.doctor_codigo,
+        count: 0,
+        total: 0,
+      });
     }
-    const entry = pendingByArs.get(key);
+    const entry = pendingGroups.get(key);
     entry.count += 1;
-    entry.total += Number(c.monto_reclamado || 0);
+    entry.total += Number(c.monto || 0);
   }
 
   const { data: relaciones } = await supabase
     .from("relaciones")
-    .select("id, fecha, estado, total_monto, ars_catalog(nombre)")
+    .select("id, fecha, estado, total_monto, doctor_nombre, ars_catalog(nombre)")
     .order("created_at", { ascending: false });
 
   return (
@@ -36,24 +47,35 @@ export default async function RelacionesPage() {
         <h2 className="mb-2 text-sm font-semibold text-slate-700">
           Listas para generar
         </h2>
-        {pendingByArs.size === 0 ? (
+        <p className="mb-3 text-xs text-slate-400">
+          Se agrupan por ARS + médico, igual que el formato de relación que ya
+          usan (encabezado del médico + una fila por reclamación).
+        </p>
+        {pendingGroups.size === 0 ? (
           <p className="text-sm text-slate-400">
-            No hay reclamaciones revisadas pendientes de agrupar por ARS.
+            No hay reclamaciones revisadas pendientes de agrupar.
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {Array.from(pendingByArs.entries()).map(([arsId, entry]) => (
+            {Array.from(pendingGroups.entries()).map(([key, entry]) => (
               <div
-                key={arsId}
+                key={key}
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4"
               >
                 <div>
                   <p className="font-medium text-slate-900">{entry.ars?.nombre}</p>
+                  <p className="text-sm text-slate-600">
+                    {entry.doctorNombre || "(médico sin especificar)"}
+                  </p>
                   <p className="text-sm text-slate-500">
                     {entry.count} reclamaciones · RD$ {entry.total.toFixed(2)}
                   </p>
                 </div>
-                <GenerarRelacionButton arsId={arsId} />
+                <GenerarRelacionButton
+                  arsId={entry.arsId}
+                  doctorNombre={entry.doctorNombre}
+                  doctorCodigo={entry.doctorCodigo}
+                />
               </div>
             ))}
           </div>
@@ -67,6 +89,7 @@ export default async function RelacionesPage() {
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>
                 <th className="px-4 py-2">ARS</th>
+                <th className="px-4 py-2">Médico</th>
                 <th className="px-4 py-2">Fecha</th>
                 <th className="px-4 py-2">Estado</th>
                 <th className="px-4 py-2">Total</th>
@@ -77,6 +100,7 @@ export default async function RelacionesPage() {
               {(relaciones || []).map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">
                   <td className="px-4 py-2">{r.ars_catalog?.nombre}</td>
+                  <td className="px-4 py-2">{r.doctor_nombre || "—"}</td>
                   <td className="px-4 py-2 text-slate-500">{r.fecha}</td>
                   <td className="px-4 py-2">{r.estado}</td>
                   <td className="px-4 py-2">RD$ {Number(r.total_monto).toFixed(2)}</td>
@@ -92,7 +116,7 @@ export default async function RelacionesPage() {
               ))}
               {(!relaciones || relaciones.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                     Aún no se ha generado ninguna relación.
                   </td>
                 </tr>

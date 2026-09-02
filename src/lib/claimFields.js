@@ -1,51 +1,66 @@
-// Campos genéricos de una reclamación médica dominicana (ARS).
-// Esto es un punto de partida razonable, no el formulario real de ninguna
-// ARS específica. Cuando tengamos el formulario real que llenan las
-// secretarias, este catálogo se ajusta para que coincida campo por campo.
+// Campos de una reclamación médica, basados en documentos reales:
+// - Formulario en papel de ARS Amor y Paz (vía red ASEMAP) — la reclamación
+//   individual que llena la secretaria del médico.
+// - "Relación" ya consolidada de ARS Senasa (un lote por médico con una fila
+//   por reclamación) — el formato de entrega/salida.
+//
+// Cada ARS tiene su propio formulario, así que solo el bloque "núcleo" es
+// obligatorio (aparece en ambos documentos vistos hasta ahora). El resto es
+// opcional porque no sabemos todavía si otras ARS lo piden. Cuando lleguen
+// más formularios reales, este catálogo se amplía.
 export const CLAIM_SECTIONS = [
   {
-    title: "Afiliado",
+    title: "Núcleo (obligatorio en toda ARS)",
     fields: [
-      { name: "afiliado_nombre", label: "Nombre del afiliado", type: "text", required: true },
-      { name: "afiliado_cedula", label: "Cédula del afiliado", type: "text", required: true },
-      { name: "afiliado_no_afiliado", label: "No. de afiliado / póliza", type: "text", required: true },
-    ],
-  },
-  {
-    title: "Paciente",
-    fields: [
-      { name: "paciente_nombre", label: "Nombre del paciente", type: "text", required: true },
-      { name: "paciente_cedula", label: "Cédula del paciente", type: "text" },
-      {
-        name: "parentesco",
-        label: "Parentesco con el afiliado",
-        type: "select",
-        options: ["Titular", "Cónyuge", "Hijo/a", "Otro"],
-      },
-    ],
-  },
-  {
-    title: "Médico / servicio",
-    fields: [
-      { name: "doctor_nombre", label: "Nombre del médico", type: "text", required: true },
-      { name: "doctor_codigo", label: "Código / exequátur del médico", type: "text" },
+      { name: "afiliado_nombre", label: "Nombre del afiliado / paciente", type: "text", required: true },
+      { name: "no_carnet_nss", label: "No. de carnet / NSS-contrato", type: "text", required: true },
+      { name: "no_autorizacion", label: "No. de autorización", type: "text", required: true },
       { name: "fecha_servicio", label: "Fecha del servicio", type: "date", required: true },
-      { name: "codigo_servicio", label: "Código del servicio/procedimiento", type: "text" },
-      { name: "descripcion_servicio", label: "Descripción del servicio", type: "textarea" },
+      {
+        name: "tipo_servicio",
+        label: "Tipo de servicio",
+        type: "select",
+        options: ["Consulta", "Emergencia", "Laboratorio", "Hospitalización", "Servicios dentales", "Honorarios", "Otros"],
+        required: true,
+      },
+      { name: "monto", label: "Monto (RD$)", type: "number", required: true },
     ],
   },
   {
-    title: "Diagnóstico",
+    title: "Afiliado / paciente",
     fields: [
-      { name: "diagnostico_codigo", label: "Código CIE-10", type: "text" },
-      { name: "diagnostico_descripcion", label: "Descripción del diagnóstico", type: "textarea" },
+      { name: "paciente_cedula", label: "Cédula", type: "text" },
+      { name: "edad", label: "Edad", type: "text" },
+      { name: "codigo_afiliado", label: "Código de afiliado / plan", type: "text" },
+      { name: "plan", label: "Plan", type: "text" },
+      { name: "direccion", label: "Dirección", type: "text" },
+      { name: "telefono", label: "Teléfono", type: "text" },
+      { name: "nombre_empleador", label: "Nombre del empleador", type: "text" },
+      { name: "telefono_empleador", label: "Teléfono del empleador", type: "text" },
+      { name: "autorizado_por", label: "Autorizado por", type: "text" },
     ],
   },
   {
-    title: "Monto",
+    title: "Clínico",
     fields: [
-      { name: "no_factura", label: "No. de factura", type: "text" },
-      { name: "monto_reclamado", label: "Monto reclamado (RD$)", type: "number", required: true },
+      { name: "diagnostico", label: "Diagnóstico", type: "textarea" },
+      { name: "procedimiento", label: "Procedimiento(s) realizado(s)", type: "textarea" },
+      { name: "codigo_procedimiento", label: "Código del procedimiento", type: "text" },
+      { name: "fecha_ingreso", label: "Fecha de ingreso", type: "date" },
+      { name: "fecha_alta", label: "Fecha de alta", type: "date" },
+      { name: "no_habitacion", label: "No. de habitación", type: "text" },
+      { name: "a_pagar_por_afiliado", label: "A pagar por el afiliado (copago RD$)", type: "number" },
+    ],
+  },
+  {
+    title: "Médico",
+    fields: [
+      { name: "doctor_nombre", label: "Nombre del médico", type: "text" },
+      { name: "doctor_codigo", label: "Código / exequátur ante la ARS", type: "text" },
+      { name: "doctor_cedula", label: "Cédula del médico", type: "text" },
+      { name: "especialidad", label: "Especialidad", type: "text" },
+      { name: "centro_medico", label: "Centro médico", type: "text" },
+      { name: "telefono_medico", label: "Teléfono del médico", type: "text" },
     ],
   },
   {

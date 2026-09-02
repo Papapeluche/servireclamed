@@ -53,9 +53,41 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    izquierda, formulario estructurado a la derecha. Cada campo tiene un
    botón "¿No se entiende?" que lo marca para revisión posterior. No se
    puede marcar "revisado" sin llenar los campos obligatorios.
-3. `/relaciones` — agrupa las reclamaciones ya revisadas por ARS, genera un
-   lote (`relación`) y lo exporta a Excel listo para entregar o subir al
-   portal de la ARS.
+3. `/relaciones` — agrupa las reclamaciones ya revisadas por **ARS + médico**
+   (igual que el formato real de Senasa: un bloque de encabezado del médico
+   más una fila por reclamación), genera el lote (`relación`) y lo exporta a
+   Excel listo para entregar o subir al portal de la ARS.
+
+## Campos reales (no genéricos) — basado en documentos que compartió el usuario
+
+Se revisaron dos fuentes reales:
+
+- Un formulario en papel de **ARS Amor y Paz** (red ASEMAP) — la reclamación
+  individual que llena la secretaria del médico por cada visita de paciente.
+- Dos relaciones ya digitadas de **ARS Senasa** — el formato de salida: un
+  bloque con los datos del médico, una tabla con una fila por reclamación, y
+  el total.
+
+De ahí salió el catálogo de campos en `src/lib/claimFields.js`:
+
+- **Núcleo (obligatorio, aparece en ambos documentos):** nombre del
+  afiliado/paciente, no. de carnet/NSS-contrato, **no. de autorización**,
+  fecha del servicio, tipo de servicio, monto.
+- **Resto de los campos son opcionales** porque solo están confirmados en el
+  formulario de Amor y Paz — no sabemos todavía si otras ARS los piden
+  (cédula, edad, código de plan, empleador, diagnóstico, procedimiento,
+  fechas de ingreso/alta, habitación, copago, datos del médico).
+
+Cada ARS tiene su propio formulario y su propio formato de relación de
+salida — por ahora solo la exportación de Senasa está calcada exactamente
+(`src/app/api/relaciones/[id]/export/route.js`). Cuando lleguen formularios
+reales de otras ARS, hay que revisar si el catálogo de campos les sirve tal
+cual o si hace falta un formato de exportación distinto por ARS.
+
+**Importante:** los documentos que se compartieron para este análisis tenían
+datos reales de pacientes y médicos (nombres, cédulas, diagnósticos,
+teléfonos). Esa información nunca se copió a este repositorio ni a la base
+de datos — solo se usó la estructura de campos.
 
 ## Modelo de datos (genérico — punto de partida)
 

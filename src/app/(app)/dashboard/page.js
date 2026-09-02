@@ -9,7 +9,7 @@ export default async function DashboardPage() {
 
   const { data: claims, error } = await supabase
     .from("claims")
-    .select("id, status, paciente_nombre, ars_id, monto_reclamado, created_at, ars_catalog(nombre)")
+    .select("id, status, afiliado_nombre, ars_id, monto, created_at, ars_catalog(nombre)")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -65,12 +65,12 @@ export default async function DashboardPage() {
               <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-2">
                   <Link href={`/reclamaciones/${c.id}`} className="text-brand-600 hover:underline">
-                    {c.paciente_nombre || "(sin nombre aún)"}
+                    {c.afiliado_nombre || "(sin nombre aún)"}
                   </Link>
                 </td>
                 <td className="px-4 py-2">{c.ars_catalog?.nombre || "—"}</td>
                 <td className="px-4 py-2">
-                  {c.monto_reclamado ? `RD$ ${c.monto_reclamado}` : "—"}
+                  {c.monto ? `RD$ ${c.monto}` : "—"}
                 </td>
                 <td className="px-4 py-2">
                   <StatusBadge status={c.status} />
