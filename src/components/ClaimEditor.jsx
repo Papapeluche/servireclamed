@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CLAIM_SECTIONS, REQUIRED_FIELD_NAMES } from "@/lib/claimFields";
+import { logAudit } from "@/lib/auth";
 import ImageZoomViewer from "@/components/ImageZoomViewer";
 
 export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [], profilesMap = {} }) {
@@ -122,6 +123,18 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
     }
 
     if (nextStatus === "revisado") {
+      const arsNombre = arsOptions.find((a) => a.id === values.ars_id)?.nombre;
+      await logAudit(supabase, {
+        action: "RECLAMACION_REVISADA",
+        targetType: "claim",
+        targetId: claim.id,
+        details: {
+          ars: arsNombre || null,
+          doctor: values.doctor_nombre || null,
+          capturada_por: profilesMap[claim.captured_by] || null,
+          monto: values.monto || null,
+        },
+      });
       router.push("/dashboard");
     } else {
       setMessage({ type: "success", text: "Guardado." });

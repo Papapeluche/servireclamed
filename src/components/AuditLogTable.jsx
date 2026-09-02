@@ -1,4 +1,5 @@
 const ACTION_LABELS = {
+  RECLAMACION_REVISADA: "Reclamación revisada",
   DOCTOR_ELIMINADO: "Médico eliminado",
   PLANTILLA_CREADA: "Formato creado",
   PLANTILLA_EDITADA: "Formato editado",
@@ -13,6 +14,7 @@ const ACTION_LABELS = {
 };
 
 const ACTION_STYLES = {
+  RECLAMACION_REVISADA: "bg-blue-100 text-blue-700",
   DOCTOR_ELIMINADO: "bg-red-100 text-red-700",
   PLANTILLA_CREADA: "bg-emerald-100 text-emerald-700",
   PLANTILLA_EDITADA: "bg-slate-100 text-slate-600",
@@ -29,6 +31,10 @@ const ACTION_STYLES = {
 function describeDetails(action, details) {
   if (!details) return "—";
   switch (action) {
+    case "RECLAMACION_REVISADA":
+      return `${details.ars || "—"} · ${details.doctor || "(médico sin especificar)"}${
+        details.capturada_por ? ` · capturada por ${details.capturada_por}` : ""
+      }${details.monto ? ` · RD$ ${Number(details.monto).toFixed(2)}` : ""}`;
     case "DOCTOR_ELIMINADO":
     case "PLANTILLA_CREADA":
     case "PLANTILLA_ELIMINADA":
