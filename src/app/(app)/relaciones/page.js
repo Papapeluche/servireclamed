@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import RelacionGroupCard from "@/components/RelacionGroupCard";
 import GenerarHojaPresentacionButton from "@/components/GenerarHojaPresentacionButton";
+import DescargarPlantillaButton from "@/components/DescargarPlantillaButton";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export default async function RelacionesPage() {
 
   const { data: relacionTemplates } = await supabase
     .from("export_templates")
-    .select("id, nombre, ars_id")
+    .select("id, nombre, ars_id, header_fields, table_columns")
     .eq("tipo", "relacion");
 
   const { data: hojaTemplates } = await supabase
@@ -107,7 +108,7 @@ export default async function RelacionesPage() {
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-slate-700">Historial</h2>
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>
@@ -127,12 +128,12 @@ export default async function RelacionesPage() {
                   <td className="px-4 py-2 text-slate-500">{r.fecha}</td>
                   <td className="px-4 py-2">RD$ {Number(r.total_monto).toFixed(2)}</td>
                   <td className="px-4 py-2">
-                    <a
-                      href={`/api/relaciones/${r.id}/export`}
-                      className="text-brand-600 hover:underline"
-                    >
-                      Descargar plantilla
-                    </a>
+                    <DescargarPlantillaButton
+                      relacionId={r.id}
+                      templates={(relacionTemplates || []).filter(
+                        (t) => !t.ars_id || t.ars_id === r.ars_id
+                      )}
+                    />
                   </td>
                   <td className="px-4 py-2">
                     <GenerarHojaPresentacionButton

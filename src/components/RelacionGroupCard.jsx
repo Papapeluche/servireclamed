@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import HojaPresentacionPanel from "@/components/HojaPresentacionPanel";
+import RelacionExportPanel from "@/components/RelacionExportPanel";
 
 export default function RelacionGroupCard({ entry, relacionTemplates, hojaTemplates, comprobante }) {
   const [relacionId, setRelacionId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [showHojaPanel, setShowHojaPanel] = useState(false);
+  const [showPlantillaPanel, setShowPlantillaPanel] = useState(false);
   const defaultTemplate =
     relacionTemplates?.find((t) => t.ars_id === entry.arsId) ||
     relacionTemplates?.find((t) => !t.ars_id);
@@ -40,25 +42,11 @@ export default function RelacionGroupCard({ entry, relacionTemplates, hojaTempla
   }
 
   async function handleConvertirPlantilla() {
-    const id = await ensureRelacion();
-    if (!id) return;
-
-    const res = await fetch(`/api/relaciones/${id}/export`);
-    if (!res.ok) {
-      alert("No se pudo descargar la plantilla.");
-      return;
+    if (!relacionId) {
+      const id = await ensureRelacion();
+      if (!id) return;
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const disposition = res.headers.get("Content-Disposition") || "";
-    const match = disposition.match(/filename="(.+)"/);
-    a.download = match ? match[1] : "relacion.xlsx";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    setShowPlantillaPanel(true);
   }
 
   async function handleConvertirHoja() {
@@ -129,6 +117,16 @@ export default function RelacionGroupCard({ entry, relacionTemplates, hojaTempla
               Convertir en hoja de presentación
             </button>
           </div>
+
+          {showPlantillaPanel && relacionId && (
+            <div className="mt-2">
+              <RelacionExportPanel
+                relacionId={relacionId}
+                templates={relacionTemplates}
+                onClose={() => setShowPlantillaPanel(false)}
+              />
+            </div>
+          )}
 
           {showHojaPanel && relacionId && (
             <div className="mt-2">

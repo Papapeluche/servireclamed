@@ -21,39 +21,43 @@ const DEFAULT_TABLE_COLUMNS = [
   { field: "monto", label: "Valor RD$" },
 ];
 
-export async function GET(request, { params }) {
-  const { id } = await params;
-  const supabase = await createClient();
-
+async function buildWorkbook(supabase, id, overrides) {
   const { data: relacion, error: relacionError } = await supabase
     .from("relaciones")
     .select(
-      "id, fecha, total_monto, template_id, doctor_nombre, doctor_cedula, doctor_codigo, especialidad, centro_medico, telefono_medico, ars_catalog(nombre)"
+      "id, fecha, total_monto, template_id, doctor_nombre, doctor_cedula, doctor_rnc, doctor_codigo, especialidad, centro_medico, telefono_medico, ars_catalog(nombre, rnc)"
     )
     .eq("id", id)
     .single();
 
   if (relacionError || !relacion) {
-    return new Response("Relación no encontrada", { status: 404 });
+    return { error: "Relación no encontrada", status: 404 };
   }
 
-  let headerFields = DEFAULT_HEADER_FIELDS;
-  let tableColumns = DEFAULT_TABLE_COLUMNS;
-  let totalField = "monto";
+  let headerFields = overrides?.header_fields;
+  let tableColumns = overrides?.table_columns;
+  let totalField = overrides?.total_field;
 
-  if (relacion.template_id) {
-    const { data: template } = await supabase
-      .from("export_templates")
-      .select("header_fields, table_columns, total_field")
-      .eq("id", relacion.template_id)
-      .single();
-
-    if (template) {
-      if (template.header_fields?.length) headerFields = template.header_fields;
-      if (template.table_columns?.length) tableColumns = template.table_columns;
-      if (template.total_field) totalField = template.total_field;
+  if (!headerFields?.length || !tableColumns?.length) {
+    let template = null;
+    if (relacion.template_id) {
+      const { data } = await supabase
+        .from("export_templates")
+        .select("header_fields, table_columns, total_field")
+        .eq("id", relacion.template_id)
+        .single();
+      template = data;
     }
+
+    if (!headerFields?.length) {
+      headerFields = template?.header_fields?.length ? template.header_fields : DEFAULT_HEADER_FIELDS;
+    }
+    if (!tableColumns?.length) {
+      tableColumns = template?.table_columns?.length ? template.table_columns : DEFAULT_TABLE_COLUMNS;
+    }
+    if (!totalField) totalField = template?.total_field || "monto";
   }
+  if (!totalField) totalField = "monto";
 
   const { data: rows, error: rowsError } = await supabase
     .from("relacion_claims")
@@ -62,14 +66,16 @@ export async function GET(request, { params }) {
     .order("orden");
 
   if (rowsError) {
-    return new Response(rowsError.message, { status: 500 });
+    return { error: rowsError.message, status: 500 };
   }
 
   const relacionValues = {
     fecha: relacion.fecha,
     ars_nombre: relacion.ars_catalog?.nombre || "",
+    ars_rnc: relacion.ars_catalog?.rnc || "",
     doctor_nombre: relacion.doctor_nombre || "",
     doctor_cedula: relacion.doctor_cedula || "",
+    doctor_rnc: relacion.doctor_rnc || "",
     doctor_codigo: relacion.doctor_codigo || "",
     especialidad: relacion.especialidad || "",
     centro_medico: relacion.centro_medico || "",
@@ -117,10 +123,30 @@ export async function GET(request, { params }) {
   const doctorName = (relacion.doctor_nombre || "sin_medico").replace(/\s+/g, "_");
   const fileName = `relacion_${arsName}_${doctorName}_${relacion.fecha}.xlsx`;
 
-  return new Response(buffer, {
+  return { buffer, fileName };
+}
+
+function respond(result) {
+  if (result.error) return new Response(result.error, { status: result.status });
+  return new Response(result.buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Content-Disposition": `attachment; filename="${result.fileName}"`,
     },
   });
+}
+
+export async function GET(request, { params }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const result = await buildWorkbook(supabase, id, {});
+  return respond(result);
+}
+
+export async function POST(request, { params }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const overrides = await request.json().catch(() => ({}));
+  const result = await buildWorkbook(supabase, id, overrides);
+  return respond(result);
 }

@@ -66,7 +66,13 @@ El objetivo es operar en **$0/mes** el mayor tiempo posible:
    presentación"** (la factura). El primer clic en cualquiera de los dos
    crea la relación por dentro (mueve esas reclamaciones a `en_relacion`);
    si después haces clic en el otro botón, reutiliza esa misma relación en
-   vez de crear una segunda.
+   vez de crear una segunda. Ninguno de los dos exporta a ciegas: cada uno
+   abre un panel con los campos/columnas del formato ya marcados, más un
+   selector para **agregar cualquier otro dato que ya se digitó** de esas
+   reclamaciones (diagnóstico, edad, empleador, lo que haga falta) — solo
+   para esa descarga, sin tocar el formato guardado. Nada de lo digitado se
+   pierde por no estar en el formato: sigue en la reclamación, solo hay que
+   agregarlo aquí si un caso puntual lo necesita.
 4. `/plantillas` (menú "Formatos") — ya vienen **dos formatos genéricos
    listos de fábrica** ("Relación estándar" y "Hoja de presentación
    estándar"), así que en el día a día nunca hace falta entrar aquí: los

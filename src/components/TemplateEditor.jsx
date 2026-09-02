@@ -185,7 +185,7 @@ export default function TemplateEditor({ template, arsOptions }) {
   );
 }
 
-function FieldListEditor({ title, options, chosen, onChange }) {
+export function FieldListEditor({ title, options, chosen, onChange }) {
   const [pendingField, setPendingField] = useState("");
   const chosenNames = new Set(chosen.map((c) => c.field));
   const available = options.filter((o) => !chosenNames.has(o.field));
