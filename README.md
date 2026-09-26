@@ -481,6 +481,41 @@ cp .env.example .env.local   # ya trae la URL y llave pública del proyecto Supa
 npm run dev
 ```
 
+## Base de datos (Supabase)
+
+- **Proyecto:** `servireclamed` (`ojqlgyygbpeoyzjnssrf`), organización
+  "ServiReclaMed", plan Free, región `us-east-1`.
+- **Estructura:** `supabase/migrations/` — cada archivo lleva el mismo
+  número de versión que tiene en la base (Supabase → Database →
+  Migrations), así que el historial del repo y el de la base coinciden
+  exacto. Cualquier cambio de estructura nuevo debe quedar aquí también.
+- **Datos de catálogo:** `supabase/datos_catalogo.sql` — las ARS, los 50
+  médicos con sus 554 códigos PSS por ARS (de las 21 hojas "Códigos PSS") y
+  las plantillas de relación/hoja de presentación. El archivo explica entre
+  qué migraciones va cada bloque, porque el orden importa.
+
+**Por qué existe esta carpeta (26-sep-2026):** el proyecto original de
+Supabase (`hkyvnilzcecdeecjimkz`) se creó con una cuenta que después no se
+pudo identificar, y su estructura solo vivía dentro de esa base — no en el
+repo. Se reconstruyó en un proyecto nuevo, en una organización propia,
+a partir del registro exacto de las migraciones y cargas de datos aplicadas,
+y se verificó comparando huellas (md5) de médicos, códigos, ARS,
+plantillas, columnas y políticas entre una reconstrucción local desde el
+repo y la base nueva: todas idénticas. Lo que **no** se pudo traer, porque
+solo existe en la base vieja: reclamaciones capturadas y sus fotos,
+relaciones, comprobantes (NCF) cargados, usuarios e historial de actividad.
+
+**Fallo de seguridad corregido en la base nueva**
+(`20260926180408_cerrar_acceso_anonimo.sql`): varias políticas RLS se
+habían creado sin `to authenticated`, así que aplicaban a `anon`, y Supabase
+le da a `anon` todos los privilegios de tabla por defecto. Con la llave
+pública (que va en el navegador y estaba en `.env.example`) alguien sin
+iniciar sesión podía leer las reclamaciones —con datos médicos—, crear o
+editar registros y borrar reclamaciones pendientes. Ahora `anon` no tiene
+acceso a ninguna tabla y todas las políticas son solo para usuarios con
+sesión. **La base vieja tiene el mismo problema** y no se pudo corregir por
+falta de acceso: mientras la app siga apuntando a ella, sigue expuesta.
+
 ## Primer usuario
 
 Por ahora no hay pantalla de registro (es una herramienta interna, no
@@ -495,12 +530,19 @@ que exista un admin:
    Add user** (con email + password).
 2. Ese usuario ya puede entrar en `/login`. Se le crea automáticamente su
    fila en `profiles` con rol `digitador`.
-3. Para subirlo a `admin`, hay que hacerlo una sola vez a mano en la base de
-   datos (`update profiles set role = 'admin' where id = '...'`) — el
-   trigger que evita la auto-escalación de rol bloquea cualquier otro
-   camino a propósito, así que no hay forma de crear el primer admin desde
-   la app misma. Una vez que existe un admin, todo lo demás (crear más
-   usuarios, subir/bajar roles) ya se hace desde `/configuracion/usuarios`.
+3. Para subirlo a `admin`, hay que hacerlo una sola vez a mano en el SQL
+   Editor de Supabase. El trigger que evita la auto-escalación de rol
+   bloquea a propósito cualquier cambio de rol hecho por alguien que no sea
+   admin (incluido el propio SQL Editor), así que se apaga solo durante ese
+   cambio:
+   ```sql
+   alter table public.profiles disable trigger profiles_prevent_role_self_escalation;
+   update public.profiles set role = 'admin' where email = 'correo@del-usuario';
+   alter table public.profiles enable trigger profiles_prevent_role_self_escalation;
+   ```
+   No hay forma de crear el primer admin desde la app misma. Una vez que
+   existe un admin, todo lo demás (crear más usuarios, subir/bajar roles)
+   ya se hace desde `/configuracion/usuarios`.
 
 ## Rigurosidad: agrupar por médico y avisar datos faltantes
 
