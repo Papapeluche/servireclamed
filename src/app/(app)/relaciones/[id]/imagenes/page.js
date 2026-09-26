@@ -23,7 +23,8 @@ export default async function ImagenesPage({ params }) {
     const { data } = claim?.image_path
       ? await supabase.storage.from("reclamaciones-imagenes").createSignedUrl(claim.image_path, 3600)
       : { data: null };
-    return { ...claim, position: index + 1, url: data?.signedUrl || null };
+    return { ...claim, position: index + 1, url: claim?.image_path
+      ? `/api/relaciones/${id}/imagenes/${claim.id}` : null, originalUrl: data?.signedUrl || null };
   }));
 
   return (
@@ -35,12 +36,9 @@ export default async function ImagenesPage({ params }) {
         El número de cada imagen corresponde a la fila de la relación en Excel.
       </p>
       <div className="mb-5 flex flex-wrap gap-3">
-        <a href={`/api/relaciones/${id}/imagenes`} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white">
-          Descargar imágenes ordenadas (.zip)
-        </a>
         <Link href={`/relaciones/${id}/plantilla`} className="rounded-lg border px-4 py-2 text-sm">Ver relación de texto</Link>
       </div>
-      <ImagenesRelacion images={images} />
+      <ImagenesRelacion images={images} relacionId={id} />
     </div>
   );
 }
