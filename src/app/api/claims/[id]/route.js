@@ -31,7 +31,12 @@ export async function DELETE(request, { params }) {
   // espacio en el storage — se borra después de confirmar que sí se pudo
   // borrar la fila (si esto falla, no es grave, solo queda un archivo suelto).
   if (claim.image_path) {
-    await supabase.storage.from("reclamaciones-imagenes").remove([claim.image_path]);
+    // Varias líneas de una hoja pueden compartir la misma imagen.
+    const { data: other } = await supabase.from("claims").select("id")
+      .eq("image_path", claim.image_path).limit(1);
+    if (other?.length === 0) {
+      await supabase.storage.from("reclamaciones-imagenes").remove([claim.image_path]);
+    }
   }
 
   return NextResponse.json({ ok: true });

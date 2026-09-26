@@ -26,85 +26,14 @@ export async function POST(request) {
     if (template?.total_field) totalField = template.total_field;
   }
 
-  let query = supabase
-    .from("claims")
-    .select("*")
-    .eq("ars_id", ars_id)
-    .eq("status", "revisado");
-
-  // Cuando el grupo ya identificó un médico del catálogo (doctor_id), se
-  // usa esa FK — es la que de verdad garantiza que no se mezclen dos
-  // médicos por una coincidencia de texto. Solo se cae al match por
-  // nombre/código cuando el médico no está en el catálogo todavía.
-  if (doctor_id) {
-    query = query.eq("doctor_id", doctor_id);
-  } else {
-    query = doctor_nombre ? query.eq("doctor_nombre", doctor_nombre) : query.is("doctor_nombre", null);
-    query = doctor_codigo ? query.eq("doctor_codigo", doctor_codigo) : query.is("doctor_codigo", null);
-  }
-
-  const { data: claims, error: claimsError } = await query;
-
-  if (claimsError) {
-    return NextResponse.json({ error: claimsError.message }, { status: 500 });
-  }
-
-  if (!claims || claims.length === 0) {
-    return NextResponse.json(
-      { error: "No hay reclamaciones revisadas pendientes para este médico/ARS" },
-      { status: 400 }
-    );
-  }
-
-  const totalMonto = claims.reduce((sum, c) => sum + Number(c[totalField] || 0), 0);
-  const first = claims[0];
-
-  const { data: relacion, error: relacionError } = await supabase
-    .from("relaciones")
-    .insert({
-      ars_id,
-      total_monto: totalMonto,
-      created_by: user.id,
-      estado: "generada",
-      template_id: template_id || null,
-      doctor_id: first.doctor_id,
-      doctor_nombre: first.doctor_nombre,
-      doctor_codigo: first.doctor_codigo,
-      doctor_cedula: first.doctor_cedula,
-      doctor_rnc: first.doctor_rnc,
-      especialidad: first.especialidad,
-      centro_medico: first.centro_medico,
-      telefono_medico: first.telefono_medico,
-    })
-    .select("id")
-    .single();
-
-  if (relacionError) {
-    return NextResponse.json({ error: relacionError.message }, { status: 500 });
-  }
-
-  const relacionClaims = claims.map((c, idx) => ({
-    relacion_id: relacion.id,
-    claim_id: c.id,
-    orden: idx,
-  }));
-
-  const { error: bridgeError } = await supabase.from("relacion_claims").insert(relacionClaims);
-  if (bridgeError) {
-    return NextResponse.json({ error: bridgeError.message }, { status: 500 });
-  }
-
-  const { error: updateError } = await supabase
-    .from("claims")
-    .update({ status: "en_relacion" })
-    .in(
-      "id",
-      claims.map((c) => c.id)
-    );
-
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ id: relacion.id });
+  const { data: id, error } = await supabase.rpc("crear_relacion_atomica", {
+    p_ars_id: ars_id,
+    p_doctor_id: doctor_id || null,
+    p_doctor_nombre: doctor_nombre || null,
+    p_doctor_codigo: doctor_codigo || null,
+    p_template_id: template_id || null,
+    p_total_field: totalField,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 409 });
+  return NextResponse.json({ id });
 }
