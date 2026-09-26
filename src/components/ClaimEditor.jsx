@@ -23,6 +23,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
     () => new Set(claim.low_confidence_fields || [])
   );
   const [saving, setSaving] = useState(false);
+  const [editVersion, setEditVersion] = useState(claim.edit_version ?? 0);
   const [message, setMessage] = useState(null);
   const [analizando, setAnalizando] = useState(false);
 
@@ -149,7 +150,8 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
     } = await supabase.auth.getUser();
 
     const payload = buildPayload(nextStatus, user?.id);
-    const { error } = await supabase.from("claims").update(payload).eq("id", claim.id);
+    const { data: saved, error } = await supabase.from("claims").update(payload)
+      .eq("id", claim.id).eq("edit_version", editVersion).select("id, edit_version");
 
     setSaving(false);
 
@@ -157,6 +159,11 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
       setMessage({ type: "error", text: error.message });
       return;
     }
+    if (!saved?.length) {
+      setMessage({ type: "error", text: "Otra persona o la IA modificó esta reclamación. Recarga la página antes de guardar." });
+      return;
+    }
+    setEditVersion(saved[0].edit_version);
 
     if (nextStatus === "revisado") {
       const arsNombre = arsOptions.find((a) => a.id === values.ars_id)?.nombre;
@@ -187,14 +194,19 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
     } = await supabase.auth.getUser();
 
     const payload = buildPayload("en_proceso", user?.id);
-    const { error: updateError } = await supabase
+    const { data: saved, error: updateError } = await supabase
       .from("claims")
       .update(payload)
-      .eq("id", claim.id);
+      .eq("id", claim.id).eq("edit_version", editVersion).select("id, edit_version");
 
     if (updateError) {
       setSaving(false);
       setMessage({ type: "error", text: updateError.message });
+      return;
+    }
+    if (!saved?.length) {
+      setSaving(false);
+      setMessage({ type: "error", text: "La reclamación cambió. Recarga la página antes de crear otra línea." });
       return;
     }
 

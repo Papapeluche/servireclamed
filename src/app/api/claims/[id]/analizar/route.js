@@ -51,7 +51,7 @@ export async function POST(request, { params }) {
 
   const { data: claim, error: claimError } = await supabase
     .from("claims")
-    .select("id, image_path, status")
+    .select("id, image_path, status, edit_version")
     .eq("id", id)
     .single();
 
@@ -123,8 +123,15 @@ export async function POST(request, { params }) {
     payload.ai_error = null;
     if (claim.status === "pendiente") payload.status = "en_proceso";
 
-    const { error: updateError } = await supabase.from("claims").update(payload).eq("id", id);
+    // El digitador puede revisar la reclamación mientras responde Gemini.
+    // Solo guardar si nadie cambió el estado desde que comenzó el análisis.
+    const { data: updated, error: updateError } = await supabase.from("claims")
+      .update(payload).eq("id", id).eq("status", claim.status)
+      .eq("edit_version", claim.edit_version).select("id");
     if (updateError) throw new Error(updateError.message);
+    if (!updated?.length) {
+      return NextResponse.json({ error: "La reclamación cambió durante el análisis; no se sobrescribieron los datos." }, { status: 409 });
+    }
 
     return NextResponse.json({
       ok: true,

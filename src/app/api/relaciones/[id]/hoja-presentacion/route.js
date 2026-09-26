@@ -94,22 +94,14 @@ export async function POST(request, { params }) {
       return new Response("Ese comprobante ya no está disponible", { status: 409 });
     }
 
-    const { error: updateError } = await supabase
-      .from("comprobantes")
-      .update({
-        estado: "usado",
-        ars_id: relacion.ars_id,
-        monto: relacion.total_monto,
-        relacion_id: relacion.id,
-        used_at: new Date().toISOString(),
-      })
-      .eq("id", comprobante_id)
-      .eq("estado", "disponible");
+    const { data: numero, error: updateError } = await supabase.rpc("consumir_comprobante", {
+      p_relacion_id: id, p_comprobante_id: comprobante_id,
+    });
 
     if (updateError) {
       return new Response(updateError.message, { status: 500 });
     }
-    comprobante = existing;
+    comprobante = { ...existing, numero };
   }
 
   await supabase
