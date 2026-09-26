@@ -5,6 +5,11 @@ import EscanearQR from "@/components/EscanearQR";
 import AutoRefresh from "@/components/AutoRefresh";
 import DashboardSearch from "@/components/DashboardSearch";
 import { getProfilesMap } from "@/lib/auth";
+import BorrarReclamacionBoton from "@/components/BorrarReclamacionBoton";
+
+// Mismo criterio que la política RLS: solo lo que aún no se ha revisado se
+// puede borrar sin romper una relación ya armada.
+const BORRABLES = ["pendiente", "en_proceso"];
 
 export const dynamic = "force-dynamic";
 
@@ -148,6 +153,7 @@ export default async function DashboardPage({ searchParams }) {
               <th className="px-4 py-2">Estado</th>
               <th className="px-4 py-2">Por</th>
               <th className="px-4 py-2">Fecha</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -171,11 +177,16 @@ export default async function DashboardPage({ searchParams }) {
                 <td className="px-4 py-2 text-slate-500">
                   {new Date(c.created_at).toLocaleDateString("es-DO")}
                 </td>
+                <td className="px-4 py-2 text-right">
+                  {BORRABLES.includes(c.status) && (
+                    <BorrarReclamacionBoton claimId={c.id} nombre={c.afiliado_nombre} />
+                  )}
+                </td>
               </tr>
             ))}
             {(!claims || claims.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   Aún no hay reclamaciones capturadas.
                 </td>
               </tr>
