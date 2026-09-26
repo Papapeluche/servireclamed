@@ -481,6 +481,57 @@ cp .env.example .env.local   # ya trae la URL y llave pública del proyecto Supa
 npm run dev
 ```
 
+## Relación de reclamaciones escaneadas (fotos tipo CamScanner)
+
+Dentro de una relación ya creada (`/relaciones/[id]`) está el botón
+**"Crear o ver relación de reclamaciones"**. Abre un modal con la foto de
+cada reclamación de esa relación, **en el mismo orden que las filas de la
+relación de Excel** (fila 1 = imagen 1), convertida en algo que parece
+escaneado.
+
+**El escaneo** (`src/lib/escaneo.js`, en el servidor con `sharp`):
+1. Detecta la hoja y la **recorta y endereza**: corrige la perspectiva de
+   una foto tomada en ángulo, como si se hubiera tomado de frente.
+2. **Aplana la iluminación**: estima el papel sin nada escrito, con sus
+   sombras y el sombreado de los pliegues, y divide la imagen entre él. Así
+   quita sombras y el sombreado de los dobleces, y deja el fondo blanco
+   parejo.
+3. Oscurece la tinta, conserva los colores (tinta azul, sellos) y **sube la
+   resolución** a ~A4 a 200 ppp.
+
+Límites honestos: la línea fina de un pliegue muy marcado puede quedar
+tenue, porque para el algoritmo se parece a un trazo de tinta. Y si no
+encuentra un borde de hoja claro (por ejemplo, una hoja sobre una mesa
+blanca, o una sombra fuerte que oscurece media hoja), **no recorta**: solo
+mejora la foto completa. Es preferible no recortar a cortar parte del
+formulario; ese caso se probó y era un riesgo real sin esta protección.
+Solo transforma píxeles: no genera ni cambia texto. La foto original sigue
+intacta y se puede comparar desde el modal ("Comparar con la foto
+original").
+
+**Caché**: cada foto se escanea una sola vez y se guarda en Storage
+(`escaneados/v1/...`, ver `src/lib/escaneoRuta.js`). La segunda vez que se
+abre la relación carga al instante. "Volver a escanear" regenera una hoja.
+Al borrar una reclamación se borra también su escaneo.
+
+**En el modal**:
+- Cuadrícula numerada con la fila de cada imagen.
+- Vista ampliada con zoom, anterior/siguiente (también con las flechas del
+  teclado) y un aviso cuando varias filas vienen de la misma hoja.
+- **Descargar PDF**: una página por fila, con encabezado "Fila N ·
+  afiliado · fecha · servicio".
+- **Descargar imágenes (ZIP)**: archivos numerados más un `indice.csv`.
+- **Compartir**: usa el menú de compartir del celular (WhatsApp, correo…);
+  si el navegador no lo permite, descarga el PDF y lo avisa.
+- **Imprimir**: abre el PDF para imprimir.
+
+El PDF y el ZIP se arman **en el navegador**, con las imágenes ya
+escaneadas, y el servidor atiende una imagen por petición. Así una relación
+de cientos de reclamaciones no choca con el límite de tiempo de Vercel.
+Esto reemplaza la galería en página aparte de la propuesta de Codex
+(PR #1), que solo subía un 3% el brillo y armaba el lote entero en una
+sola petición del servidor.
+
 ## Base de datos (Supabase)
 
 - **Proyecto:** `servireclamed` (`ojqlgyygbpeoyzjnssrf`), organización

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rutaEscaneo } from "@/lib/escaneoRuta";
 
 export async function DELETE(request, { params }) {
   const { id } = await params;
@@ -35,7 +36,9 @@ export async function DELETE(request, { params }) {
     const { data: other } = await supabase.from("claims").select("id")
       .eq("image_path", claim.image_path).limit(1);
     if (other?.length === 0) {
-      await supabase.storage.from("reclamaciones-imagenes").remove([claim.image_path]);
+      await supabase.storage
+        .from("reclamaciones-imagenes")
+        .remove([claim.image_path, rutaEscaneo(claim.image_path)]);
     }
   }
 

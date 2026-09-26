@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/BackLink";
+import RelacionImagenesBoton from "@/components/RelacionImagenesModal";
 import { getProfilesMap } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -106,10 +107,18 @@ export default async function RelacionDetallePage({ params }) {
         >
           Ver hoja de presentación
         </Link>
-        <Link href={`/relaciones/${relacion.id}/imagenes`}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-          Ver y descargar relación de imágenes
-        </Link>
+        <RelacionImagenesBoton
+          relacionId={relacion.id}
+          titulo={`${relacion.ars_catalog?.nombre || "ARS"} — ${relacion.doctor_nombre || "médico sin especificar"}`}
+          fecha={relacion.fecha}
+          filas={claims.map((c) => ({
+            id: c.id,
+            image_path: c.image_path,
+            afiliado_nombre: c.afiliado_nombre,
+            fecha_servicio: c.fecha_servicio,
+            tipo_servicio: c.tipo_servicio,
+          }))}
+        />
       </div>
 
       <section>
