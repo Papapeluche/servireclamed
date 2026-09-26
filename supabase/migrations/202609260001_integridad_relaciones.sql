@@ -24,8 +24,13 @@ declare
   v_total numeric;
 begin
   if auth.uid() is null then raise exception 'No autenticado'; end if;
-  if p_total_field <> 'monto' then
-    raise exception 'Campo de total no permitido';
+  -- El editor de plantillas permite totalizar cualquier columna numérica
+  -- (monto, valor_total, a_pagar_por_afiliado...), no solo monto.
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'public' and table_name = 'claims'
+                   and column_name = p_total_field
+                   and data_type in ('numeric', 'integer', 'bigint', 'smallint', 'real', 'double precision')) then
+    raise exception 'Campo de total no permitido: %', p_total_field;
   end if;
 
   select array_agg(c order by c.created_at, c.id) into v_claims
@@ -53,7 +58,7 @@ begin
   returning id into v_relacion_id;
 
   insert into public.relacion_claims (relacion_id, claim_id, orden)
-  select v_relacion_id, c.id, n - 1 from unnest(v_claims) with ordinality as t(c, n);
+  select v_relacion_id, t.id, t.ordinality - 1 from unnest(v_claims) with ordinality as t;
   update public.claims set status = 'en_relacion'
   where id in (select c.id from unnest(v_claims) c);
   if (select count(*) from public.claims where id in (select c.id from unnest(v_claims) c)
