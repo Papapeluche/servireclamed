@@ -5,11 +5,7 @@ import EscanearQR from "@/components/EscanearQR";
 import AutoRefresh from "@/components/AutoRefresh";
 import DashboardSearch from "@/components/DashboardSearch";
 import { getProfilesMap } from "@/lib/auth";
-import BorrarReclamacionBoton from "@/components/BorrarReclamacionBoton";
-
-// Mismo criterio que la política RLS: solo lo que aún no se ha revisado se
-// puede borrar sin romper una relación ya armada.
-const BORRABLES = ["pendiente", "en_proceso"];
+import ReclamacionesTabla from "@/components/ReclamacionesTabla";
 
 export const dynamic = "force-dynamic";
 
@@ -143,57 +139,19 @@ export default async function DashboardPage({ searchParams }) {
         </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Paciente</th>
-              <th className="px-4 py-2">ARS</th>
-              <th className="px-4 py-2">Monto</th>
-              <th className="px-4 py-2">Estado</th>
-              <th className="px-4 py-2">Por</th>
-              <th className="px-4 py-2">Fecha</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(claims || []).map((c) => (
-              <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link href={`/reclamaciones/${c.id}`} className="text-brand-600 hover:underline">
-                    {c.afiliado_nombre || "(sin nombre aún)"}
-                  </Link>
-                </td>
-                <td className="px-4 py-2">{c.ars_catalog?.nombre || "—"}</td>
-                <td className="px-4 py-2">
-                  {c.monto ? `RD$ ${c.monto}` : "—"}
-                </td>
-                <td className="px-4 py-2">
-                  <StatusBadge status={c.status} />
-                </td>
-                <td className="px-4 py-2 text-slate-500">
-                  {profilesMap[c.digitized_by] || profilesMap[c.captured_by] || "—"}
-                </td>
-                <td className="px-4 py-2 text-slate-500">
-                  {new Date(c.created_at).toLocaleDateString("es-DO")}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {BORRABLES.includes(c.status) && (
-                    <BorrarReclamacionBoton claimId={c.id} nombre={c.afiliado_nombre} />
-                  )}
-                </td>
-              </tr>
-            ))}
-            {(!claims || claims.length === 0) && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                  Aún no hay reclamaciones capturadas.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ReclamacionesTabla
+        filas={(claims || []).map((c) => ({
+          id: c.id,
+          status: c.status,
+          afiliado_nombre: c.afiliado_nombre,
+          ars: c.ars_catalog?.nombre || null,
+          monto: c.monto,
+          por: profilesMap[c.digitized_by] || profilesMap[c.captured_by] || null,
+          // Se formatea aquí, en hora de RD: si se formateara en el navegador,
+          // el servidor (UTC) y el navegador podrían mostrar días distintos.
+          fecha: new Date(c.created_at).toLocaleDateString("es-DO", { timeZone: "America/Santo_Domingo" }),
+        }))}
+      />
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
@@ -221,21 +179,5 @@ export default async function DashboardPage({ searchParams }) {
         </div>
       )}
     </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const styles = {
-    pendiente: "bg-warn-100 text-warn-700",
-    en_proceso: "bg-blue-100 text-blue-700",
-    revisado: "bg-emerald-100 text-emerald-700",
-    en_relacion: "bg-indigo-100 text-indigo-700",
-    enviado: "bg-slate-200 text-slate-700",
-    rechazado: "bg-red-100 text-red-700",
-  };
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status] || ""}`}>
-      {CLAIM_STATUS_LABELS[status] || status}
-    </span>
   );
 }
