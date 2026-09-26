@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CLAIM_SECTIONS, REQUIRED_FIELD_NAMES } from "@/lib/claimFields";
 import { logAudit } from "@/lib/auth";
 import ImageZoomViewer from "@/components/ImageZoomViewer";
+import { resolverMedico, completarDesdeCatalogo } from "@/lib/medicos";
 
 export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [], profilesMap = {} }) {
   const router = useRouter();
@@ -108,15 +109,41 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
     });
   }
 
-  function findDoctorByNombre(nombre) {
-    return doctors.find(
-      (d) => d.nombre.trim().toLowerCase() === String(nombre || "").trim().toLowerCase()
-    );
+  // A qué médico del catálogo pertenece, aunque el papel lo escriba
+  // distinto (sin tildes, incompleto) — por código en la ARS, cédula o nombre.
+  const enlace = useMemo(
+    () =>
+      resolverMedico(
+        {
+          doctor_nombre: values.doctor_nombre,
+          doctor_cedula: values.doctor_cedula,
+          doctor_codigo: values.doctor_codigo,
+          ars_id: values.ars_id,
+        },
+        doctors
+      ),
+    [values.doctor_nombre, values.doctor_cedula, values.doctor_codigo, values.ars_id, doctors]
+  );
+
+  function usarDatosDelCatalogo() {
+    const m = enlace?.medico;
+    if (!m) return;
+    const codigoArs = (m.doctor_ars_codigos || []).find((c) => c.ars_id === values.ars_id)?.codigo;
+    setValues((v) => ({
+      ...v,
+      doctor_nombre: m.nombre,
+      doctor_cedula: m.cedula || v.doctor_cedula,
+      doctor_rnc: m.rnc || v.doctor_rnc,
+      especialidad: m.especialidad || v.especialidad,
+      centro_medico: m.centro_medico || v.centro_medico,
+      doctor_codigo: codigoArs || v.doctor_codigo,
+    }));
   }
 
   function buildPayload(nextStatus, userId) {
     const payload = { ...values, ars_id: values.ars_id || null };
-    payload.doctor_id = findDoctorByNombre(values.doctor_nombre)?.id || null;
+    payload.doctor_id = enlace?.medico.id || null;
+    if (enlace) Object.assign(payload, completarDesdeCatalogo(values, enlace.medico, values.ars_id));
     for (const section of CLAIM_SECTIONS) {
       for (const field of section.fields) {
         const raw = values[field.name];
@@ -219,7 +246,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
         image_path: claim.image_path,
         status: "pendiente",
         ars_id: values.ars_id || null,
-        doctor_id: findDoctorByNombre(values.doctor_nombre)?.id || null,
+        doctor_id: enlace?.medico.id || null,
         doctor_nombre: values.doctor_nombre || null,
         doctor_codigo: values.doctor_codigo || null,
         doctor_cedula: values.doctor_cedula || null,
@@ -305,6 +332,31 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
             ))}
           </select>
         </div>
+
+        {enlace ? (
+          <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <span>
+              ✓ Médico del catálogo: <strong>{enlace.medico.nombre}</strong>
+              <span className="text-emerald-700">
+                {" "}
+                (reconocido por {enlace.por === "codigo" ? "su código en esta ARS" : enlace.por === "cedula" ? "la cédula" : "el nombre"})
+              </span>
+            </span>
+            {enlace.medico.nombre !== values.doctor_nombre && (
+              <button type="button" onClick={usarDatosDelCatalogo} className="font-medium underline hover:no-underline">
+                Usar nombre y datos del catálogo
+              </button>
+            )}
+          </div>
+        ) : (
+          (values.doctor_nombre || values.doctor_cedula || values.doctor_codigo) && (
+            <div className="mb-4 rounded-lg bg-warn-100 px-3 py-2 text-sm text-warn-700">
+              ⚠ Este médico no se encontró en el catálogo, así que no se podrán usar sus
+              comprobantes (NCF) ni agrupar bien sus relaciones. Revisa el nombre, la cédula o el
+              código (y que la ARS sea la correcta), o agrégalo en Médicos.
+            </div>
+          )
+        )}
 
         {CLAIM_SECTIONS.map((section) => (
           <fieldset key={section.title} className="mb-5 rounded-xl border border-slate-200 bg-white p-4">

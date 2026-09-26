@@ -21,7 +21,7 @@ export default async function ComprobantesPage() {
     supabase
       .from("comprobantes")
       .select(
-        "id, numero, estado, monto, vencimiento, used_at, created_at, created_by, doctors(nombre), ars_catalog(nombre), relaciones(id)"
+        "id, numero, estado, monto, vencimiento, used_at, created_at, created_by, doctor_id, doctors(nombre, cedula), ars_catalog(nombre), relaciones(id)"
       )
       .order("created_at", { ascending: false })
       .limit(500),

@@ -17,6 +17,7 @@ export default function HojaPresentacionPreview({
   templates,
   comprobanteUsado,
   comprobanteDisponible,
+  sinMedico,
   defaultHeaderFields,
   defaultCategorias,
 }) {
@@ -196,8 +197,10 @@ export default function HojaPresentacionPreview({
           Usar el comprobante (NCF) #{comprobanteDisponible.numero} disponible para este médico
         </label>
       ) : (
-        <p className="mb-4 text-xs text-slate-400 print:hidden">
-          No hay comprobantes (NCF) disponibles asignados a este médico — se generará sin NCF.
+        <p className={`mb-4 text-xs print:hidden ${sinMedico ? "rounded-lg bg-warn-100 px-3 py-2 text-warn-700" : "text-slate-400"}`}>
+          {sinMedico
+            ? "⚠ Esta relación no está enlazada a un médico del catálogo, así que no se pueden buscar sus comprobantes (NCF). Abre sus reclamaciones y verifica que el médico aparezca como reconocido del catálogo."
+            : "No hay comprobantes (NCF) disponibles asignados a este médico — se generará sin NCF."}
         </p>
       )}
 

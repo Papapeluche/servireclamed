@@ -4,6 +4,7 @@ import { askGeminiVision, isGeminiConfigured } from "@/lib/ai/gemini";
 import { parseJsonResponse } from "@/lib/ai/json";
 import { buildExtractionPrompt } from "@/lib/ai/extractionPrompt";
 import { ALL_FIELD_NAMES, FIELD_BY_NAME } from "@/lib/claimFields";
+import { resolverMedico, completarDesdeCatalogo } from "@/lib/medicos";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -116,6 +117,25 @@ export async function POST(request, { params }) {
         (a) => a.nombre.toLowerCase().includes(needle) || needle.includes(a.nombre.toLowerCase())
       );
       if (match) payload.ars_id = match.id;
+    }
+
+    // Enlazar al médico del catálogo aunque el papel lo escriba distinto: sin
+    // doctor_id no se encuentran sus comprobantes ni se agrupan sus relaciones.
+    const { data: doctores } = await supabase
+      .from("doctors")
+      .select("id, nombre, cedula, rnc, especialidad, centro_medico, doctor_ars_codigos(ars_id, codigo)");
+    const enlace = resolverMedico(
+      {
+        doctor_nombre: payload.doctor_nombre,
+        doctor_cedula: payload.doctor_cedula,
+        doctor_codigo: payload.doctor_codigo,
+        ars_id: payload.ars_id,
+      },
+      doctores || []
+    );
+    if (enlace) {
+      payload.doctor_id = enlace.medico.id;
+      Object.assign(payload, completarDesdeCatalogo(payload, enlace.medico, payload.ars_id));
     }
 
     payload.low_confidence_fields = lowConfidence;

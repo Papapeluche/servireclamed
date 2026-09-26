@@ -65,6 +65,7 @@ export default async function RelacionHojaPage({ params }) {
         templates={templatesForArs || []}
         comprobanteUsado={comprobanteUsado}
         comprobanteDisponible={comprobanteDisponible}
+        sinMedico={!relacion.doctor_id}
         defaultHeaderFields={DEFAULT_HOJA_HEADER_FIELDS}
         defaultCategorias={DEFAULT_HOJA_CATEGORIAS}
       />

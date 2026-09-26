@@ -613,6 +613,24 @@ solo se cae al texto cuando el médico ni siquiera está en el catálogo
 todavía, y ahí sigue sin mezclar médicos con `doctor_id` distinto, así ese
 no tenga ninguno.
 
+**Reconocer al médico aunque el papel lo escriba distinto**
+(`src/lib/medicos.js`, `resolverMedico`). Antes el `doctor_id` solo se
+ponía si el nombre coincidía letra por letra con el catálogo. "Cristian
+Escarfuller" (papel) contra "Cristian Antonio Escarfuller Olivo"
+(catálogo), o "Socrates" contra "Sócrates", quedaban sin enlazar. Y sin
+`doctor_id`, la hoja de presentación no encontraba los comprobantes (NCF)
+asignados a ese médico. Ahora se reconoce en este orden:
+1. Por su **código en esa ARS**. Hay ARS que repiten un código entre dos
+   médicos; en ese caso se desempata por cédula o nombre.
+2. Por **cédula**.
+3. Por **nombre**, sin tildes, mayúsculas, puntos ni "Dr.", aceptando
+   nombres incompletos si coinciden con un solo médico.
+
+Si hay duda, no enlaza: es preferible avisar que adivinar. Se aplica al
+leer con IA y al guardar en el editor, y solo rellena desde el catálogo los
+datos que el papel dejó vacíos. El editor muestra "✓ Médico del catálogo:
+… (reconocido por …)" o un aviso en amarillo si no lo encontró.
+
 **¿Avisa si al médico o a la ARS le faltan datos que la plantilla pide?**
 Ahora sí, y de dos formas. `GET`/`POST /api/relaciones/[id]/export` y
 `POST /api/relaciones/[id]/hoja-presentacion` revisan, de los campos del
