@@ -158,12 +158,13 @@ export default function CameraCapture() {
     );
   }
 
-  function handleFileInput(e) {
+  async function handleFileInput(e) {
     const files = Array.from(e.target.files || []);
-    for (const file of files) {
-      addCaptura(URL.createObjectURL(file), file);
-    }
     e.target.value = "";
+    for (const file of files) {
+      const jpeg = await aJpeg(file);
+      addCaptura(URL.createObjectURL(jpeg), jpeg);
+    }
   }
 
   function addCaptura(thumb, fileOrBlob) {
@@ -331,7 +332,6 @@ export default function CameraCapture() {
           <input
             type="file"
             accept="image/*"
-            capture="environment"
             multiple
             onChange={handleFileInput}
             className="hidden"
@@ -423,4 +423,29 @@ function CapturaThumb({ captura, onDelete }) {
       )}
     </div>
   );
+}
+
+const MAX_LADO_SUBIDA = 2400;
+
+// Las fotos de galería pueden venir en PNG (capturas de pantalla), WebP o
+// pesar 5+ MB; todo se guarda como JPEG (así lo esperan la IA y el escaneo)
+// y a un tamaño que sobra para leer un formulario.
+async function aJpeg(file) {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const escala = Math.min(1, MAX_LADO_SUBIDA / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * escala);
+    canvas.height = Math.round(bmp.height * escala);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; // fondo blanco para PNG con transparencia
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    return blob || file;
+  } catch {
+    // Un formato que este navegador no sabe leer: se sube tal cual.
+    return file;
+  }
 }
