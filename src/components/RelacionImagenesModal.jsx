@@ -38,6 +38,7 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
   // una sola vez por image_path.
   const [imagenes, setImagenes] = useState({}); // image_path -> { estado, url, blob, recortado }
   const [seleccion, setSeleccion] = useState(null); // índice de fila en vista ampliada
+  const [hojaSel, setHojaSel] = useState(0); // 0 = reclamación, 1..n = anexo
   const [verOriginal, setVerOriginal] = useState(false);
   const [originales, setOriginales] = useState({}); // image_path -> url
   const [ocupado, setOcupado] = useState(null); // "pdf" | "zip" | "compartir" | "imprimir"
@@ -45,18 +46,24 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
   const urlsRef = useRef([]);
   const pdfRef = useRef(null);
 
+  // Todas las hojas a escanear: la de cada reclamación y sus anexos, una
+  // sola vez por archivo (varias filas pueden compartir la misma hoja).
   const rutas = useMemo(() => {
     const vistas = new Map();
-    for (const f of filas) if (f.image_path && !vistas.has(f.image_path)) vistas.set(f.image_path, f.id);
-    return [...vistas.entries()].map(([path, claimId]) => ({ path, claimId }));
+    for (const f of filas) {
+      for (const h of hojasDe(f)) if (h.path && !vistas.has(h.path)) vistas.set(h.path, h);
+    }
+    return [...vistas.values()];
   }, [filas]);
 
   const pedir = useCallback(
-    async ({ path, claimId }, { regenerar = false, signal } = {}) => {
+    async ({ path, claimId, anexoId }, { regenerar = false, signal } = {}) => {
       setImagenes((prev) => ({ ...prev, [path]: { ...prev[path], estado: "cargando" } }));
       try {
-        const qs = regenerar ? "?regenerar=1" : "";
-        const res = await fetch(`/api/relaciones/${relacionId}/imagenes/${claimId}${qs}`, { signal });
+        const qs = new URLSearchParams();
+        if (anexoId) qs.set("anexo", anexoId);
+        if (regenerar) qs.set("regenerar", "1");
+        const res = await fetch(`/api/relaciones/${relacionId}/imagenes/${claimId}?${qs}`, { signal });
         if (!res.ok) throw new Error(await res.text());
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -96,8 +103,8 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
         if (seleccion !== null) setSeleccion(null);
         else onClose();
       }
-      if (seleccion !== null && e.key === "ArrowRight") setSeleccion((i) => Math.min(filas.length - 1, i + 1));
-      if (seleccion !== null && e.key === "ArrowLeft") setSeleccion((i) => Math.max(0, i - 1));
+      if (seleccion !== null && e.key === "ArrowRight") { setSeleccion((i) => Math.min(filas.length - 1, i + 1)); setHojaSel(0); }
+      if (seleccion !== null && e.key === "ArrowLeft") { setSeleccion((i) => Math.max(0, i - 1)); setHojaSel(0); }
     }
     window.addEventListener("keydown", tecla);
     const overflow = document.body.style.overflow;
@@ -119,29 +126,32 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
     const pdf = await PDFDocument.create();
     const fuente = await pdf.embedFont(StandardFonts.Helvetica);
     const cacheEmbebido = new Map();
+    // Cada reclamación va seguida de sus anexos, en el orden de la relación.
     for (const [i, fila] of filas.entries()) {
-      const img = imagenes[fila.image_path];
-      const encabezado = latin1(
-        `Fila ${i + 1} · ${fila.afiliado_nombre || "Afiliado sin nombre"} · ${fila.fecha_servicio || "sin fecha"} · ${fila.tipo_servicio || ""}`
-      );
-      if (img?.estado !== "listo") {
-        const page = pdf.addPage([595.28, 841.89]);
-        page.drawText(encabezado, { x: 28, y: 815, size: 9, font: fuente, color: rgb(0.2, 0.2, 0.2) });
-        page.drawText("Imagen no disponible", { x: 28, y: 420, size: 14, font: fuente, color: rgb(0.6, 0, 0) });
-        continue;
+      const hojas = hojasDe(fila);
+      for (const [k, hoja] of hojas.entries()) {
+        const img = imagenes[hoja.path];
+        const base = `Fila ${i + 1} · ${fila.afiliado_nombre || "Afiliado sin nombre"} · ${fila.fecha_servicio || "sin fecha"} · ${fila.tipo_servicio || ""}`;
+        const encabezado = latin1(k === 0 ? base : `Fila ${i + 1} · Anexo ${k} de ${hojas.length - 1} · ${fila.afiliado_nombre || "Afiliado sin nombre"}`);
+        if (img?.estado !== "listo") {
+          const page = pdf.addPage([595.28, 841.89]);
+          page.drawText(encabezado, { x: 28, y: 815, size: 9, font: fuente, color: rgb(0.2, 0.2, 0.2) });
+          page.drawText("Imagen no disponible", { x: 28, y: 420, size: 14, font: fuente, color: rgb(0.6, 0, 0) });
+          continue;
+        }
+        let emb = cacheEmbebido.get(hoja.path);
+        if (!emb) {
+          emb = await pdf.embedJpg(await img.blob.arrayBuffer());
+          cacheEmbebido.set(hoja.path, emb);
+        }
+        const horizontal = emb.width > emb.height;
+        const [pw, ph] = horizontal ? [841.89, 595.28] : [595.28, 841.89];
+        const page = pdf.addPage([pw, ph]);
+        page.drawText(encabezado, { x: 28, y: ph - 22, size: 9, font: fuente, color: rgb(0.2, 0.2, 0.2) });
+        const escala = Math.min((pw - 36) / emb.width, (ph - 50) / emb.height);
+        const w = emb.width * escala, h = emb.height * escala;
+        page.drawImage(emb, { x: (pw - w) / 2, y: (ph - 32 - h) / 2, width: w, height: h });
       }
-      let emb = cacheEmbebido.get(fila.image_path);
-      if (!emb) {
-        emb = await pdf.embedJpg(await img.blob.arrayBuffer());
-        cacheEmbebido.set(fila.image_path, emb);
-      }
-      const horizontal = emb.width > emb.height;
-      const [pw, ph] = horizontal ? [841.89, 595.28] : [595.28, 841.89];
-      const page = pdf.addPage([pw, ph]);
-      page.drawText(encabezado, { x: 28, y: ph - 22, size: 9, font: fuente, color: rgb(0.2, 0.2, 0.2) });
-      const escala = Math.min((pw - 36) / emb.width, (ph - 50) / emb.height);
-      const w = emb.width * escala, h = emb.height * escala;
-      page.drawImage(emb, { x: (pw - w) / 2, y: (ph - 32 - h) / 2, width: w, height: h });
     }
     const blob = new Blob([await pdf.save()], { type: "application/pdf" });
     pdfRef.current = blob;
@@ -167,16 +177,19 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       const ancho = String(filas.length).length;
-      const indice = ["fila,afiliado,fecha_servicio,tipo_servicio,archivo"];
+      const indice = ["fila,afiliado,fecha_servicio,tipo_servicio,archivo,anexos"];
       filas.forEach((fila, i) => {
-        const img = imagenes[fila.image_path];
-        const archivo =
-          img?.estado === "listo"
-            ? `${String(i + 1).padStart(ancho, "0")}_${limpiarNombre(fila.afiliado_nombre || "reclamacion")}.jpg`
-            : "(no disponible)";
-        if (img?.estado === "listo") zip.file(archivo, img.blob);
+        const prefijo = `${String(i + 1).padStart(ancho, "0")}_${limpiarNombre(fila.afiliado_nombre || "reclamacion")}`;
+        const nombres = hojasDe(fila).map((hoja, k) => {
+          const img = imagenes[hoja.path];
+          if (img?.estado !== "listo") return "(no disponible)";
+          const nombre = k === 0 ? `${prefijo}.jpg` : `${prefijo}_anexo${k}.jpg`;
+          zip.file(nombre, img.blob);
+          return nombre;
+        });
+        const [archivo, ...anexos] = nombres;
         indice.push(
-          [i + 1, fila.afiliado_nombre || "", fila.fecha_servicio || "", fila.tipo_servicio || "", archivo]
+          [i + 1, fila.afiliado_nombre || "", fila.fecha_servicio || "", fila.tipo_servicio || "", archivo, anexos.join("; ")]
             .map((v) => `"${String(v).replaceAll('"', '""')}"`)
             .join(",")
         );
@@ -209,20 +222,30 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
       }
     });
 
-  async function verOriginalDe(fila) {
-    if (!originales[fila.image_path]) {
-      const res = await fetch(`/api/relaciones/${relacionId}/imagenes/${fila.id}?tipo=original`);
+  async function verOriginalDe(hoja) {
+    if (!originales[hoja.path]) {
+      const qs = new URLSearchParams({ tipo: "original" });
+      if (hoja.anexoId) qs.set("anexo", hoja.anexoId);
+      const res = await fetch(`/api/relaciones/${relacionId}/imagenes/${hoja.claimId}?${qs}`);
       if (res.ok) {
         const url = URL.createObjectURL(await res.blob());
         urlsRef.current.push(url);
-        setOriginales((prev) => ({ ...prev, [fila.image_path]: url }));
+        setOriginales((prev) => ({ ...prev, [hoja.path]: url }));
       }
     }
     setVerOriginal(true);
   }
 
+  function irAFila(i) {
+    setSeleccion(i);
+    setHojaSel(0);
+    setVerOriginal(false);
+  }
+
   const filaSel = seleccion !== null ? filas[seleccion] : null;
-  const imgSel = filaSel ? imagenes[filaSel.image_path] : null;
+  const hojasSel = filaSel ? hojasDe(filaSel) : [];
+  const hojaActual = hojasSel[Math.min(hojaSel, hojasSel.length - 1)] || null;
+  const imgSel = hojaActual ? imagenes[hojaActual.path] : null;
   const compartidaCon = filaSel
     ? filas.map((f, i) => (f.image_path === filaSel.image_path && i !== seleccion ? i + 1 : null)).filter(Boolean)
     : [];
@@ -281,10 +304,27 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <button onClick={() => setSeleccion(null)} className={btn}>← Todas</button>
-                <button onClick={() => { setSeleccion(seleccion - 1); setVerOriginal(false); }} disabled={seleccion === 0} className={btn}>Anterior</button>
+                <button onClick={() => irAFila(seleccion - 1)} disabled={seleccion === 0} className={btn}>Anterior</button>
                 <span className="text-sm font-semibold text-slate-800">Fila {seleccion + 1} de {filas.length}</span>
-                <button onClick={() => { setSeleccion(seleccion + 1); setVerOriginal(false); }} disabled={seleccion === filas.length - 1} className={btn}>Siguiente</button>
+                <button onClick={() => irAFila(seleccion + 1)} disabled={seleccion === filas.length - 1} className={btn}>Siguiente</button>
               </div>
+              {hojasSel.length > 1 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {hojasSel.map((h, k) => (
+                    <button
+                      key={h.path}
+                      onClick={() => { setHojaSel(k); setVerOriginal(false); }}
+                      className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                        k === hojaSel
+                          ? k === 0 ? "border-brand-600 bg-brand-600 text-white" : "border-amber-500 bg-amber-500 text-white"
+                          : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {h.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="mb-2 text-sm text-slate-600">
                 {filaSel.afiliado_nombre || "Afiliado sin nombre"} · {filaSel.fecha_servicio || "sin fecha"} · {filaSel.tipo_servicio || "sin tipo"}
                 {compartidaCon.length > 0 && (
@@ -294,8 +334,9 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
               <div className="h-[62vh] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                 {imgSel?.estado === "listo" ? (
                   <ImageZoomViewer
-                    src={verOriginal && originales[filaSel.image_path] ? originales[filaSel.image_path] : imgSel.url}
-                    alt={`Reclamación fila ${seleccion + 1}`}
+                    key={hojaActual.path}
+                    src={verOriginal && originales[hojaActual.path] ? originales[hojaActual.path] : imgSel.url}
+                    alt={`Fila ${seleccion + 1} · ${hojaActual.etiqueta}`}
                   />
                 ) : (
                   <p className="p-8 text-sm text-slate-500">
@@ -307,16 +348,16 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
                 {verOriginal ? (
                   <button onClick={() => setVerOriginal(false)} className="text-brand-600 underline">Ver escaneada</button>
                 ) : (
-                  <button onClick={() => verOriginalDe(filaSel)} className="text-brand-600 underline">Comparar con la foto original</button>
+                  <button onClick={() => verOriginalDe(hojaActual)} className="text-brand-600 underline">Comparar con la foto original</button>
                 )}
                 <button
-                  onClick={() => pedir({ path: filaSel.image_path, claimId: filaSel.id }, { regenerar: true })}
+                  onClick={() => pedir(hojaActual, { regenerar: true })}
                   className="text-brand-600 underline"
                 >
                   Volver a escanear
                 </button>
                 {imgSel?.estado === "listo" && (
-                  <a href={imgSel.url} download={`fila_${seleccion + 1}_${limpiarNombre(filaSel.afiliado_nombre || "reclamacion")}.jpg`} className="text-brand-600 underline">
+                  <a href={imgSel.url} download={`fila_${seleccion + 1}_${limpiarNombre(filaSel.afiliado_nombre || "reclamacion")}${hojaSel ? `_anexo${hojaSel}` : ""}.jpg`} className="text-brand-600 underline">
                     Descargar esta imagen
                   </a>
                 )}
@@ -330,7 +371,7 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
                 return (
                   <button
                     key={fila.id}
-                    onClick={() => { setSeleccion(i); setVerOriginal(false); }}
+                    onClick={() => irAFila(i)}
                     className="overflow-hidden rounded-lg border border-slate-200 text-left hover:border-brand-500"
                   >
                     <div className="relative aspect-[3/4] bg-slate-100">
@@ -345,6 +386,11 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
                       <span className="absolute left-1 top-1 rounded bg-slate-900/80 px-1.5 py-0.5 text-xs font-semibold text-white">
                         {i + 1}
                       </span>
+                      {fila.anexos?.length > 0 && (
+                        <span className="absolute right-1 top-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white">
+                          📎 {fila.anexos.length}
+                        </span>
+                      )}
                     </div>
                     <p className="truncate px-2 py-1 text-xs text-slate-600">{fila.afiliado_nombre || "Sin nombre"}</p>
                   </button>
@@ -356,6 +402,13 @@ function Modal({ relacionId, titulo, fecha, filas, onClose }) {
       </div>
     </div>
   );
+}
+
+function hojasDe(fila) {
+  return [
+    { path: fila.image_path, claimId: fila.id, anexoId: null, etiqueta: "Reclamación" },
+    ...(fila.anexos || []).map((a, k) => ({ path: a.image_path, claimId: fila.id, anexoId: a.id, etiqueta: `📎 Anexo ${k + 1}` })),
+  ];
 }
 
 const btn =

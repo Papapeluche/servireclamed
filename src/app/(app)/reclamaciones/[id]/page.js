@@ -25,12 +25,26 @@ export default async function ReclamacionPage({ params }) {
     .from("reclamaciones-imagenes")
     .createSignedUrl(claim.image_path, 60 * 60);
 
+  const { data: anexosRows } = await supabase
+    .from("claim_anexos")
+    .select("id, image_path")
+    .eq("claim_id", id)
+    .order("created_at");
+  let anexos = [];
+  if (anexosRows?.length) {
+    const { data: firmadas } = await supabase.storage
+      .from("reclamaciones-imagenes")
+      .createSignedUrls(anexosRows.map((a) => a.image_path), 60 * 60);
+    anexos = anexosRows.map((a, i) => ({ id: a.id, url: firmadas?.[i]?.signedUrl }));
+  }
+
   return (
     <div>
       <BackLink href="/dashboard">Volver al dashboard</BackLink>
       <ClaimEditor
         claim={claim}
         imageUrl={signedUrl?.signedUrl}
+        anexos={anexos}
         arsOptions={arsOptions || []}
         doctors={doctors || []}
         profilesMap={profilesMap}

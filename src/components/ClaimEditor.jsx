@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CLAIM_SECTIONS, REQUIRED_FIELD_NAMES } from "@/lib/claimFields";
 import { logAudit } from "@/lib/auth";
-import ImageZoomViewer from "@/components/ImageZoomViewer";
+import HojasReclamacion from "@/components/HojasReclamacion";
 import { resolverMedico, completarDesdeCatalogo } from "@/lib/medicos";
 
-export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [], profilesMap = {} }) {
+export default function ClaimEditor({ claim, imageUrl, anexos = [], arsOptions, doctors = [], profilesMap = {} }) {
   const router = useRouter();
   const [values, setValues] = useState(() => {
     const initial = {};
@@ -271,7 +271,7 @@ export default function ClaimEditor({ claim, imageUrl, arsOptions, doctors = [],
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="h-[70vh] lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-        <ImageZoomViewer src={imageUrl} alt="Reclamación escaneada" />
+        <HojasReclamacion claimId={claim.id} imageUrl={imageUrl} anexosIniciales={anexos} />
       </div>
 
       <div>

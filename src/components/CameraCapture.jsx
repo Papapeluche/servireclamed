@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { subirAnexo, quitarAnexo, aJpeg } from "@/lib/anexos";
 
 // Detección de "papel quieto" para disparar la captura sola — no lee el
 // contenido (eso lo hace la IA después), solo nota cuándo la cámara dejó
@@ -34,6 +35,18 @@ export default function CameraCapture() {
   // lado al tomar una foto — la cámara se queda encendida para poder ir
   // pasando papel tras papel sin esperar entre uno y otro.
   const [capturas, setCapturas] = useState([]);
+  // Modo anexos: mientras está activo, cada foto se pega como anexo a esta
+  // reclamación en vez de crear una nueva. Se guarda también en una ref
+  // porque la captura automática corre en un temporizador creado una sola
+  // vez, que si no seguiría viendo el valor viejo.
+  const [modoAnexos, setModoAnexos] = useState(null); // { localId, claimId, numero }
+  const modoAnexosRef = useRef(null);
+  const numeroRef = useRef(0);
+
+  function cambiarModoAnexos(valor) {
+    modoAnexosRef.current = valor;
+    setModoAnexos(valor);
+  }
 
   useEffect(() => {
     startCamera();
@@ -137,7 +150,8 @@ export default function CameraCapture() {
   function takePhoto() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    // La cámara todavía no manda imagen (recién abierta): no hay nada que tomar.
+    if (!video || !canvas || !video.videoWidth) return;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -150,6 +164,7 @@ export default function CameraCapture() {
 
     canvas.toBlob(
       (blob) => {
+        if (!blob) return;
         const thumb = URL.createObjectURL(blob);
         addCaptura(thumb, blob);
       },
@@ -169,8 +184,20 @@ export default function CameraCapture() {
 
   function addCaptura(thumb, fileOrBlob) {
     const localId = crypto.randomUUID();
+    const padre = modoAnexosRef.current;
+    if (padre) {
+      setCapturas((prev) => [
+        { localId, thumb, tipo: "anexo", status: "subiendo", claimId: padre.claimId, padreLocalId: padre.localId, numero: padre.numero },
+        ...prev,
+      ]);
+      subirAnexo(createClient(), padre.claimId, fileOrBlob)
+        .then((anexo) => updateCaptura(localId, { status: "ok", anexoId: anexo.id }))
+        .catch(() => updateCaptura(localId, { status: "error" }));
+      return;
+    }
+    const numero = ++numeroRef.current;
     setCapturas((prev) => [
-      { localId, thumb, status: "subiendo", claimId: null, aiStatus: null },
+      { localId, thumb, tipo: "reclamacion", numero, status: "subiendo", claimId: null, aiStatus: null },
       ...prev,
     ]);
     uploadAndCreateClaim(localId, fileOrBlob);
@@ -181,7 +208,27 @@ export default function CameraCapture() {
   }
 
   async function borrarCaptura(captura) {
-    if (!confirm("¿Borrar esta foto? No se puede deshacer.")) return;
+    if (captura.tipo === "anexo") {
+      if (!confirm("¿Quitar este anexo? No se puede deshacer.")) return;
+      if (!captura.anexoId) {
+        setCapturas((prev) => prev.filter((c) => c.localId !== captura.localId));
+        return;
+      }
+      updateCaptura(captura.localId, { status: "borrando" });
+      try {
+        await quitarAnexo(captura.claimId, captura.anexoId);
+        setCapturas((prev) => prev.filter((c) => c.localId !== captura.localId));
+      } catch (e) {
+        alert(e.message);
+        updateCaptura(captura.localId, { status: "ok" });
+      }
+      return;
+    }
+
+    const anexos = capturas.filter((c) => c.padreLocalId === captura.localId).length;
+    const extra = anexos ? ` y sus ${anexos} anexo(s)` : "";
+    if (!confirm(`¿Borrar esta reclamación${extra}? No se puede deshacer.`)) return;
+    if (modoAnexosRef.current?.localId === captura.localId) cambiarModoAnexos(null);
 
     if (!captura.claimId) {
       // Nunca llegó a crearse la reclamación (falló la subida) — solo hay
@@ -199,7 +246,9 @@ export default function CameraCapture() {
         updateCaptura(captura.localId, { status: "ok" });
         return;
       }
-      setCapturas((prev) => prev.filter((c) => c.localId !== captura.localId));
+      setCapturas((prev) =>
+        prev.filter((c) => c.localId !== captura.localId && c.padreLocalId !== captura.localId)
+      );
     } catch {
       alert("No se pudo borrar esta foto — revisa tu conexión.");
       updateCaptura(captura.localId, { status: "ok" });
@@ -261,8 +310,12 @@ export default function CameraCapture() {
     }
   }
 
-  const guardadas = capturas.filter((c) => c.status === "ok").length;
+  const guardadas = capturas.filter((c) => c.tipo === "reclamacion" && c.status === "ok").length;
+  const anexosGuardados = capturas.filter((c) => c.tipo === "anexo" && c.status === "ok").length;
   const conError = capturas.filter((c) => c.status === "error").length;
+  // La reclamación más reciente: a ella se le agregan los anexos.
+  const ultima = capturas.find((c) => c.tipo === "reclamacion");
+  const anexosDe = (localId) => capturas.filter((c) => c.padreLocalId === localId).length;
 
   return (
     <div className="mx-auto max-w-md">
@@ -290,9 +343,40 @@ export default function CameraCapture() {
         Captura automática (sin tocar el botón)
       </label>
 
+      {modoAnexos ? (
+        <div className="mb-3 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+          <p>
+            📎 <strong>Modo anexos:</strong> cada foto se agrega a la reclamación{" "}
+            <strong>#{modoAnexos.numero}</strong> ({anexosDe(modoAnexos.localId)} anexo(s) hasta ahora).
+          </p>
+          <button
+            onClick={() => cambiarModoAnexos(null)}
+            className="mt-2 w-full rounded-lg bg-amber-500 py-2 font-medium text-white hover:bg-amber-600"
+          >
+            ✓ Listo, siguiente reclamación
+          </button>
+        </div>
+      ) : (
+        ultima && (
+          <button
+            onClick={() =>
+              cambiarModoAnexos({ localId: ultima.localId, claimId: ultima.claimId, numero: ultima.numero })
+            }
+            disabled={ultima.status !== "ok"}
+            className="mb-3 w-full rounded-lg border-2 border-dashed border-amber-400 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+          >
+            {ultima.status === "ok"
+              ? `📎 Agregar anexos a la reclamación #${ultima.numero}`
+              : "📎 Agregar anexos (esperando que termine de subir...)"}
+          </button>
+        )
+      )}
+
       <div
         className={`relative overflow-hidden rounded-xl border-4 bg-black transition-colors ${
-          autoCapture && autoStatus === "quieto"
+          modoAnexos
+            ? "border-amber-400"
+            : autoCapture && autoStatus === "quieto"
             ? "border-emerald-400"
             : autoCapture && autoStatus === "pausa"
               ? "border-brand-500"
@@ -307,6 +391,11 @@ export default function CameraCapture() {
           </div>
         )}
         {flash && <div className="absolute inset-0 bg-white/80" />}
+        {modoAnexos && (
+          <div className="absolute left-2 top-2 rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-white">
+            📎 Anexos de #{modoAnexos.numero}
+          </div>
+        )}
         {autoCapture && cameraReady && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
             {autoStatus === "quieto" && "Quieta... capturando"}
@@ -342,17 +431,17 @@ export default function CameraCapture() {
       {capturas.length > 0 && (
         <div className="mt-4">
           <p className="mb-2 text-xs text-slate-500">
-            {guardadas} guardada(s) en esta sesión
+            {guardadas} reclamación(es){anexosGuardados > 0 && ` · ${anexosGuardados} anexo(s)`} en esta sesión
             {conError > 0 && <span className="text-red-600"> · {conError} con error</span>}
           </p>
           <div className="flex flex-wrap gap-2">
             {capturas.map((c) => (
-              <CapturaThumb key={c.localId} captura={c} onDelete={borrarCaptura} />
+              <CapturaThumb key={c.localId} captura={c} anexos={anexosDe(c.localId)} onDelete={borrarCaptura} />
             ))}
           </div>
           <p className="mt-2 text-[10px] text-slate-400">
             🤖 leyendo · ✓ leída por IA · ⚠ leída pero revisa lo marcado · ✍
-            IA no disponible, digitar a mano
+            IA no disponible, digitar a mano · 📎 anexo (borde amarillo)
           </p>
         </div>
       )}
@@ -367,12 +456,17 @@ const AI_BADGES = {
   no_disponible: { icon: "✍", className: "bg-slate-500" },
 };
 
-function CapturaThumb({ captura, onDelete }) {
-  const aiBadge = captura.status === "ok" ? AI_BADGES[captura.aiStatus] : null;
+function CapturaThumb({ captura, anexos = 0, onDelete }) {
+  const esAnexo = captura.tipo === "anexo";
+  const aiBadge = captura.status === "ok" && !esAnexo ? AI_BADGES[captura.aiStatus] : null;
   const puedeBorrar = captura.status === "ok" || captura.status === "error";
 
   const content = (
-    <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
+    <div
+      className={`relative h-16 w-16 overflow-hidden rounded-lg ${
+        esAnexo ? "border-2 border-amber-400" : "border border-slate-200"
+      }`}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={captura.thumb} alt="" className="h-full w-full object-cover" />
       {captura.status === "subiendo" && (
@@ -390,6 +484,10 @@ function CapturaThumb({ captura, onDelete }) {
           ✕
         </div>
       )}
+      <div className="absolute left-0 top-0 rounded-br-md bg-slate-900/75 px-1 text-[10px] font-semibold text-white">
+        {esAnexo ? `📎#${captura.numero}` : `#${captura.numero}`}
+        {!esAnexo && anexos > 0 && ` 📎${anexos}`}
+      </div>
       {aiBadge && (
         <div
           className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-tl-lg text-xs text-white ${aiBadge.className}`}
@@ -423,29 +521,4 @@ function CapturaThumb({ captura, onDelete }) {
       )}
     </div>
   );
-}
-
-const MAX_LADO_SUBIDA = 2400;
-
-// Las fotos de galería pueden venir en PNG (capturas de pantalla), WebP o
-// pesar 5+ MB; todo se guarda como JPEG (así lo esperan la IA y el escaneo)
-// y a un tamaño que sobra para leer un formulario.
-async function aJpeg(file) {
-  try {
-    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const escala = Math.min(1, MAX_LADO_SUBIDA / Math.max(bmp.width, bmp.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bmp.width * escala);
-    canvas.height = Math.round(bmp.height * escala);
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#fff"; // fondo blanco para PNG con transparencia
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-    bmp.close?.();
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-    return blob || file;
-  } catch {
-    // Un formato que este navegador no sabe leer: se sube tal cual.
-    return file;
-  }
 }

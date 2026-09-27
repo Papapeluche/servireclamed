@@ -16,6 +16,10 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Reclamación no encontrada" }, { status: 404 });
   }
 
+  // Los anexos se borran solos en la base (on delete cascade), pero sus
+  // archivos no: se guardan las rutas antes para borrarlos después.
+  const { data: anexos } = await supabase.from("claim_anexos").select("image_path").eq("claim_id", id);
+
   // Con RLS, un DELETE sin permiso no da error: simplemente no borra nada.
   // Solo se puede borrar así (sin ser admin) mientras siga pendiente/en
   // proceso — ver migración claims_borrar_pendientes_cualquier_staff.
@@ -40,6 +44,11 @@ export async function DELETE(request, { params }) {
         .from("reclamaciones-imagenes")
         .remove([claim.image_path, rutaEscaneo(claim.image_path)]);
     }
+  }
+
+  const archivosAnexos = (anexos || []).flatMap((a) => [a.image_path, rutaEscaneo(a.image_path)]);
+  if (archivosAnexos.length) {
+    await supabase.storage.from("reclamaciones-imagenes").remove(archivosAnexos);
   }
 
   return NextResponse.json({ ok: true });

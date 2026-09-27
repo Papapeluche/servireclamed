@@ -12,11 +12,13 @@ const BUCKET = "reclamaciones-imagenes";
 // navegador las va pidiendo de a pocas y arma el PDF/ZIP él mismo.
 //   ?tipo=original   -> la foto tal cual se tomó
 //   ?regenerar=1     -> vuelve a escanear aunque ya exista en caché
+//   ?anexo=<id>      -> una hoja de anexo de esa reclamación, en vez de la principal
 export async function GET(request, { params }) {
   const { id, claimId } = await params;
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") === "original" ? "original" : "escaneo";
   const regenerar = url.searchParams.get("regenerar") === "1";
+  const anexoId = url.searchParams.get("anexo");
 
   const supabase = await createClient();
   const { data: row } = await supabase
@@ -25,7 +27,16 @@ export async function GET(request, { params }) {
     .eq("relacion_id", id)
     .eq("claim_id", claimId)
     .maybeSingle();
-  const imagePath = row?.claims?.image_path;
+  let imagePath = row?.claims?.image_path;
+  if (row && anexoId) {
+    const { data: anexo } = await supabase
+      .from("claim_anexos")
+      .select("image_path")
+      .eq("id", anexoId)
+      .eq("claim_id", claimId)
+      .maybeSingle();
+    imagePath = anexo?.image_path;
+  }
   if (!imagePath) return new Response("Imagen no encontrada", { status: 404 });
 
   const storage = supabase.storage.from(BUCKET);

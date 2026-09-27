@@ -532,6 +532,43 @@ Esto reemplaza la galería en página aparte de la propuesta de Codex
 (PR #1), que solo subía un 3% el brillo y armaba el lote entero en una
 sola petición del servidor.
 
+## Anexos de las reclamaciones
+
+Las consultas casi nunca llevan anexos, pero la mayoría de los
+procedimientos llevan de 3 a 6 hojas. Cada anexo pertenece a una
+reclamación (tabla `claim_anexos`; las fotos van en el mismo bucket, bajo
+`anexos/<claim_id>/`) y viaja con ella a la relación.
+
+**Al capturar** (`/capturar`), sin pasos nuevos para las consultas:
+1. Se fotografía la reclamación, como siempre.
+2. Si es un procedimiento con anexos, se toca **"📎 Agregar anexos a la
+   reclamación #N"**. Mientras ese modo está activo, cada foto (manual,
+   automática o de galería) se pega como anexo de esa reclamación en vez de
+   crear una nueva. El recuadro de la cámara se pone amarillo y dice
+   "Anexos de #N".
+3. **"✓ Listo, siguiente reclamación"** y se sigue con la próxima.
+
+La captura automática lee el modo desde una `ref`, no desde el estado:
+corre en un temporizador creado una sola vez, que si no seguiría viendo el
+valor viejo y crearía reclamaciones nuevas en vez de anexos.
+
+**En la reclamación** (`HojasReclamacion.jsx`): pestañas "Reclamación /
+📎 Anexo 1…" sobre el visor, **"+ Agregar anexos"** (cámara o galería, por
+si se olvidó alguno) y **"Quitar este anexo"**. Quitar un anexo no cambia
+montos, así que cualquier staff puede hacerlo hasta que la reclamación se
+envía; un admin, siempre.
+
+**En la relación de reclamaciones** (el modal): cada reclamación va
+seguida de sus anexos, escaneados igual que la hoja principal. En el PDF:
+"Fila N" y luego "Fila N · Anexo k de n". En el ZIP: `01_Nombre.jpg`,
+`01_Nombre_anexo1.jpg`…, y el `indice.csv` lista los anexos de cada fila.
+La cuadrícula marca "📎 n" en las que tienen anexos. La IA solo lee la hoja
+principal, que es donde están los datos.
+
+Al borrar una reclamación se borran también las fotos de sus anexos y sus
+escaneos (la base borra los registros sola, por `on delete cascade`, pero
+no los archivos).
+
 ## Base de datos (Supabase)
 
 - **Proyecto:** `servireclamed` (`ojqlgyygbpeoyzjnssrf`), organización

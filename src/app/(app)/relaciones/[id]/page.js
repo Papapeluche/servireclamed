@@ -37,6 +37,16 @@ export default async function RelacionDetallePage({ params }) {
 
   const claims = (rows || []).map((r) => r.claims).filter(Boolean);
 
+  const { data: anexosRows } = claims.length
+    ? await supabase
+        .from("claim_anexos")
+        .select("id, claim_id, image_path")
+        .in("claim_id", claims.map((c) => c.id))
+        .order("created_at")
+    : { data: [] };
+  const anexosPorClaim = {};
+  for (const a of anexosRows || []) (anexosPorClaim[a.claim_id] ||= []).push({ id: a.id, image_path: a.image_path });
+
   return (
     <div>
       <BackLink href="/relaciones">Volver a relaciones</BackLink>
@@ -117,6 +127,7 @@ export default async function RelacionDetallePage({ params }) {
             afiliado_nombre: c.afiliado_nombre,
             fecha_servicio: c.fecha_servicio,
             tipo_servicio: c.tipo_servicio,
+            anexos: anexosPorClaim[c.id] || [],
           }))}
         />
       </div>
