@@ -123,6 +123,17 @@ modelo**, en `https://aistudio.google.com/apikey`. Sin esa variable,
 `/api/claims/[id]/analizar` devuelve un error claro y la app sigue
 funcionando 100% manual, como siempre pudo.
 
+**Reintentos cuando Gemini está saturado (7-oct-2026).** En la primera
+prueba real, 6 de 8 reclamaciones capturadas seguidas quedaron sin leer por
+un `503 — high demand` pasajero de Gemini. Ahora `src/lib/ai/gemini.js`
+reintenta solo los errores pasajeros (429, 500, 502, 503, 504 y fallas de
+red) hasta 4 veces, esperando ~2 s, ~5 s y ~12 s (o lo que diga
+`Retry-After`, con tope de 20 s). Los demás errores (clave inválida, modelo
+retirado…) se reportan de una vez. Si aun así alguna queda sin leer, el
+dashboard muestra un aviso con **"Reintentar lectura con IA"** que las
+procesa todas (solo las `pendiente`, de 2 en 2, para no pisar trabajo
+manual ni volver a saturar).
+
 ## Stack
 
 - **Next.js (App Router)** + Tailwind — se sirve como PWA instalable, así

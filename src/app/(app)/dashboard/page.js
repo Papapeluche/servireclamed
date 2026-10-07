@@ -6,6 +6,7 @@ import AutoRefresh from "@/components/AutoRefresh";
 import DashboardSearch from "@/components/DashboardSearch";
 import { getProfilesMap } from "@/lib/auth";
 import ReclamacionesTabla from "@/components/ReclamacionesTabla";
+import ReintentarIABoton from "@/components/ReintentarIABoton";
 
 export const dynamic = "force-dynamic";
 
@@ -59,9 +60,20 @@ export default async function DashboardPage({ searchParams }) {
   if (activeStatus) query = query.eq("status", activeStatus);
   if (q) query = query.or(SEARCH_COLUMNS.map((col) => `${col}.ilike.%${q}%`).join(","));
 
-  const [{ data: claims, error, count: totalFiltered }, profilesMap] = await Promise.all([
+  // Las que la IA no pudo leer y nadie ha tocado — para reintentarlas en
+  // bloque. Independiente de la página/filtro que se esté viendo.
+  const sinLeerQuery = supabase
+    .from("claims")
+    .select("id")
+    .eq("status", "pendiente")
+    .not("ai_error", "is", null)
+    .order("created_at", { ascending: true })
+    .limit(1000);
+
+  const [{ data: claims, error, count: totalFiltered }, profilesMap, { data: sinLeer }] = await Promise.all([
     query,
     getProfilesMap(supabase),
+    sinLeerQuery,
   ]);
 
   const totalPages = Math.max(1, Math.ceil((totalFiltered || 0) / PAGE_SIZE));
@@ -92,6 +104,8 @@ export default async function DashboardPage({ searchParams }) {
       <div className="mb-6">
         <EscanearQR />
       </div>
+
+      <ReintentarIABoton ids={(sinLeer || []).map((c) => c.id)} />
 
       <div className="mb-6">
         <DashboardSearch />

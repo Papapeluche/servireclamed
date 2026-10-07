@@ -18,15 +18,15 @@ export async function GET(request) {
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json(
-      { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY en el servidor." },
-      { status: 501 }
-    );
+    // El detalle va al log de Vercel, no a la respuesta (la ruta es pública).
+    console.error("keepalive: falta SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json({ ok: false }, { status: 501 });
   }
 
   const { error } = await admin.from("ars_catalog").select("id", { head: true, count: "exact" });
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 502 });
+    console.error("keepalive: la base no respondió", error.message);
+    return NextResponse.json({ ok: false }, { status: 502 });
   }
   return NextResponse.json({ ok: true, at: new Date().toISOString() });
 }
