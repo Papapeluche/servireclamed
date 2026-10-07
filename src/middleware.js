@@ -49,5 +49,6 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons).*)"],
+  // api/keepalive queda fuera: lo llama el cron de Vercel, sin sesión.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons|api/keepalive).*)"],
 };

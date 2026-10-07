@@ -582,6 +582,18 @@ no los archivos).
   las plantillas de relación/hoja de presentación. El archivo explica entre
   qué migraciones va cada bloque, porque el orden importa.
 
+**Pausa por inactividad (plan Free).** Supabase pausa el proyecto si la
+base pasa 7 días sin actividad. Ocurrió el 7-oct-2026: la app cargaba pero
+nadie podía iniciar sesión (el dominio `*.supabase.co` dejó de resolver).
+Se restauró desde el dashboard/API (Restore project). Para que no se repita,
+un cron diario de Vercel (`vercel.json`) llama a `/api/keepalive`, que hace
+una lectura mínima con la llave de servicio. Requiere
+`SUPABASE_SERVICE_ROLE_KEY` del proyecto **nuevo** en Vercel; `CRON_SECRET`
+es opcional (si existe, Vercel la manda sola y la ruta la exige). Para
+comprobarlo: abrir `https://<dominio>/api/keepalive` → `{"ok":true,…}`. Si
+el negocio depende de la app a diario, el plan Pro elimina las pausas y
+agrega respaldos diarios.
+
 **Por qué existe esta carpeta (26-sep-2026):** el proyecto original de
 Supabase (`hkyvnilzcecdeecjimkz`) se creó con una cuenta que después no se
 pudo identificar, y su estructura solo vivía dentro de esa base — no en el
@@ -867,7 +879,7 @@ separaron en columnas propias en `claims`. Ahora se ve en la práctica:
       IA algún día tiene sentido.
 - [ ] Decidir permisos por rol (¿un supervisor debe aprobar antes de
       generar la relación?).
-- [ ] Íconos PWA reales para instalar en pantalla de inicio (hoy hay un
-      placeholder simple en `public/icons/icon.svg`).
-- [ ] Despliegue en producción (Vercel es la opción más simple para
-      Next.js, con capa gratuita).
+- [x] Íconos PWA en PNG (192, 512, maskable 512 y `apple-touch-icon` 180)
+      en `public/icons/`, generados del mismo diseño que `icon.svg`.
+- [x] Despliegue en producción: Vercel (`servireclamed.vercel.app`), con
+      cron diario `/api/keepalive` para que Supabase no pause la base.
